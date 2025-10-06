@@ -1,8 +1,8 @@
-fmt:
-    bunx @biomejs/biome check --write --unsafe .
+format:
+    bun fmt
 
 lint:
-    bunx @biomejs/biome check .
+    bun lint
 
 start:
     bun run index.ts

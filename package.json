@@ -9,21 +9,23 @@
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.3"
 	},
-	"peerDependencies": {
-		"typescript": "^5"
-	},
-	"scripts": {
-		"start": "bun run index.ts",
-		"dev": "bun --watch index.ts",
-		"test": "bun test",
-		"prepare": "husky"
-	},
 	"dependencies": {
 		"@atproto/api": "^0.17.0",
 		"dotenv": "^17.2.3",
 		"irc-framework": "^4.14.0"
 	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"scripts": {
+		"dev": "bun --watch index.ts",
+		"format": "bunx @biomejs/biome check --write --unsafe .",
+		"format:staged": "bunx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --staged",
+		"prepare": "husky",
+		"start": "bun run index.ts",
+		"test": "bun test"
+	},
 	"lint-staged": {
-		"*": "bunx @biomejs/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+		"*": "bun run format:staged"
 	}
 }

@@ -5,7 +5,7 @@ irc-to-bluesky bot
 ### setup
 ```bash
 curl -fsSL https://bun.sh/install | bash
-cp .env.template .env # edit .env with your credentials
+cp .env.template .env # you gotta edit this
 bun install
 bun start
 ```
@@ -14,8 +14,8 @@ bun start
 
 ```bash
 bun dev # hack on it with reloading
-just fmt
-just test
+bun format
+bun test
 
 ```
 
