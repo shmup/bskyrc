@@ -1,0 +1,20 @@
+{
+  "name": "douglbutt",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.17.0",
+    "dotenv": "^17.2.3",
+    "irc-framework": "^4.14.0"
+  }
+}
