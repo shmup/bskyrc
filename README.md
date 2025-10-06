@@ -30,8 +30,10 @@ twit hello world
 
 ### Post with an image
 ```
-twit hello world <https://example.com/image.jpg>
+twit hello world https://example.com/image.jpg
 ```
+
+Image URLs are automatically detected and embedded (supports .jpg, .jpeg, .png, .gif, .webp, .bmp). Query strings are supported (e.g., `image.jpg?size=large`). Multiple images (up to 4) are supported.
 
 ### Quote someone's last message
 ```

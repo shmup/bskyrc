@@ -1,5 +1,6 @@
 // bluesky posting and interaction logic
 import { type BskyAgent, RichText } from "@atproto/api";
+
 import { BLUESKY_APP_URL, ONE_HOUR_MS } from "./constants.js";
 
 // type for bluesky post data
@@ -39,7 +40,7 @@ export interface PostResult {
 export async function postToBluesky(
 	agent: BskyAgent,
 	text: string,
-	imageUrl?: string,
+	imageUrls?: string[],
 	replyTo?: ReplyTarget,
 ): Promise<PostResult> {
 	try {
@@ -59,32 +60,38 @@ export async function postToBluesky(
 			};
 		}
 
-		// handle image embedding if url provided
-		if (imageUrl) {
+		// handle image embedding if urls provided (max 4 images)
+		if (imageUrls && imageUrls.length > 0) {
 			try {
-				// fetch the image
-				const response = await fetch(imageUrl);
-				const imageBuffer = await response.arrayBuffer();
+				const images = [];
+				// bluesky supports up to 4 images per post
+				const urlsToEmbed = imageUrls.slice(0, 4);
 
-				// upload to bluesky
-				const uploadResponse = await agent.uploadBlob(
-					new Uint8Array(imageBuffer),
-					{
-						encoding: response.headers.get("content-type") || "image/jpeg",
-					},
-				);
+				for (const imageUrl of urlsToEmbed) {
+					// fetch the image
+					const response = await fetch(imageUrl);
+					const imageBuffer = await response.arrayBuffer();
+
+					// upload to bluesky
+					const uploadResponse = await agent.uploadBlob(
+						new Uint8Array(imageBuffer),
+						{
+							encoding: response.headers.get("content-type") || "image/jpeg",
+						},
+					);
+
+					images.push({
+						alt: "",
+						image: uploadResponse.data.blob,
+					});
+				}
 
 				postData.embed = {
 					$type: "app.bsky.embed.images",
-					images: [
-						{
-							alt: "",
-							image: uploadResponse.data.blob,
-						},
-					],
+					images,
 				};
 			} catch (err) {
-				console.error("Failed to embed image:", err);
+				console.error("Failed to embed images:", err);
 				return { success: false };
 			}
 		}

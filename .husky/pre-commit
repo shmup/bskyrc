@@ -1,2 +1,2 @@
-bunx lint-staged
-bun test
+output=$(bunx lint-staged 2>&1) || { echo "$output"; exit 1; }
+output=$(bun test 2>&1) || { echo "$output"; exit 1; }

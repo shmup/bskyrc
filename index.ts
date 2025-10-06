@@ -96,7 +96,11 @@ async function main() {
 		if (command?.type === "twit") {
 			// store the text being posted (not the command) in history
 			messageHistory.set(nick.toLowerCase(), command.text);
-			const result = await postToBluesky(agent, command.text, command.imageUrl);
+			const result = await postToBluesky(
+				agent,
+				command.text,
+				command.imageUrls,
+			);
 			if (result.success && result.uri) {
 				lastPostUri = result.uri;
 				lastPostTimestamp = Date.now();

@@ -15,27 +15,40 @@ describe("parseTwitCommand", () => {
 		expect(result).toEqual({
 			type: "twit",
 			text: "hello world",
-			imageUrl: undefined,
+			imageUrls: undefined,
 		});
 	});
 
 	test("parses twit command with image url", () => {
 		const result = parseTwitCommand(
-			"twit check this out <https://example.com/image.jpg>",
+			"twit check this out https://example.com/image.jpg",
 		);
 		expect(result).toEqual({
 			type: "twit",
 			text: "check this out",
-			imageUrl: "https://example.com/image.jpg",
+			imageUrls: ["https://example.com/image.jpg"],
 		});
 	});
 
-	test("trims whitespace from text and image url", () => {
-		const result = parseTwitCommand("twit  hello  <  https://example.com  >");
+	test("parses twit command with multiple image urls", () => {
+		const result = parseTwitCommand(
+			"twit check these https://example.com/a.jpg https://example.com/b.png",
+		);
 		expect(result).toEqual({
 			type: "twit",
-			text: "hello",
-			imageUrl: "https://example.com",
+			text: "check these",
+			imageUrls: ["https://example.com/a.jpg", "https://example.com/b.png"],
+		});
+	});
+
+	test("supports query strings in image urls", () => {
+		const result = parseTwitCommand(
+			"twit photo https://example.com/img.jpg?size=large",
+		);
+		expect(result).toEqual({
+			type: "twit",
+			text: "photo",
+			imageUrls: ["https://example.com/img.jpg?size=large"],
 		});
 	});
 
@@ -44,7 +57,7 @@ describe("parseTwitCommand", () => {
 		expect(result).toEqual({
 			type: "twit",
 			text: "hello",
-			imageUrl: undefined,
+			imageUrls: undefined,
 		});
 	});
 

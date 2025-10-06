@@ -2,7 +2,7 @@
 export type TwitCommand = {
 	type: "twit";
 	text: string;
-	imageUrl?: string;
+	imageUrls?: string[];
 };
 
 export type QuoteCommand = {
@@ -32,14 +32,23 @@ export type Command =
  * parse a message to see if it matches the twit command pattern
  */
 export function parseTwitCommand(message: string): TwitCommand | null {
-	const match = message.match(/^twit\s+(.+?)(?:\s+<(.+)>)?$/i);
+	const match = message.match(/^twit\s+(.+)$/i);
 	if (!match) return null;
 
-	const [, text, imageUrl] = match;
+	const [, fullText] = match;
+
+	// extract image urls from the text
+	const imageUrlPattern =
+		/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp|bmp)(\?\S*)?/gi;
+	const imageUrls = fullText.match(imageUrlPattern);
+
+	// remove image urls from the text to get clean post text
+	const text = fullText.replace(imageUrlPattern, "").trim();
+
 	return {
 		type: "twit",
-		text: text.trim(),
-		imageUrl: imageUrl?.trim(),
+		text,
+		imageUrls: imageUrls || undefined,
 	};
 }
 

@@ -140,14 +140,13 @@ describe("end-to-end user scenarios", () => {
 	test("scenario: twit with image url", () => {
 		const messageHistory = new Map<string, string>();
 
-		const message =
-			"twit check out my screenshot <https://example.com/img.png>";
+		const message = "twit check out my screenshot https://example.com/img.png";
 		const cmd = parseCommand(message);
 
 		expect(cmd?.type).toBe("twit");
 		if (cmd?.type === "twit") {
 			expect(cmd.text).toBe("check out my screenshot");
-			expect(cmd.imageUrl).toBe("https://example.com/img.png");
+			expect(cmd.imageUrls).toEqual(["https://example.com/img.png"]);
 			// would fetch and embed the image
 
 			messageHistory.set("alice", cmd.text);
