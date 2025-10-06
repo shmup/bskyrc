@@ -180,12 +180,23 @@ async function main() {
 		messageHistory.set(nick.toLowerCase(), message);
 	});
 
+	client.on("socket close", () => {
+		console.log("IRC socket closed - disconnected from server");
+	});
+
+	client.on("reconnecting", () => {
+		console.log("IRC attempting to reconnect...");
+	});
+
 	client.on("error", (err) => {
 		console.error("IRC error:", err);
 	});
 
-	client.on("close", () => {
-		console.log("Disconnected from IRC");
+	client.on("close", (event) => {
+		console.log(
+			"Disconnected from IRC",
+			event ? `- Reason: ${JSON.stringify(event)}` : "",
+		);
 	});
 }
 
