@@ -107,9 +107,6 @@ async function main() {
     // ignore our own messages
     if (nick === client.user.nick) return;
 
-    // store message in history
-    messageHistory.set(nick.toLowerCase(), message);
-
     // only respond to messages in our channel
     if (target !== process.env.IRC_CHANNEL) return;
 
@@ -117,31 +114,34 @@ async function main() {
     const twitMatch = message.match(/^twit\s+(.+?)(?:\s+<(.+)>)?$/i);
     if (twitMatch) {
       const [, text, imageUrl] = twitMatch;
+      // store the text being posted (not the command) in history
+      messageHistory.set(nick.toLowerCase(), text.trim());
       const success = await postToBluesky(text.trim(), imageUrl?.trim());
       client.say(target, success ? 'ok' : 'no');
       return;
     }
 
-    // handle "quote" command
+    // handle "quote" command - only if the nick exists in history
     const quoteMatch = message.match(/^quote\s+(\S+)(?:\s+(.+))?$/i);
     if (quoteMatch) {
       const [, targetNick, additionalText] = quoteMatch;
       const quotedMessage = messageHistory.get(targetNick.toLowerCase());
 
-      if (!quotedMessage) {
-        console.log(`No recent message from ${targetNick}`);
-        client.say(target, 'no');
+      if (quotedMessage) {
+        let postText = quotedMessage;
+        if (additionalText) {
+          postText += ' ' + additionalText.trim();
+        }
+
+        const success = await postToBluesky(postText);
+        client.say(target, success ? 'ok' : 'no');
         return;
       }
-
-      let postText = quotedMessage;
-      if (additionalText) {
-        postText += '\n\n' + additionalText.trim();
-      }
-
-      const success = await postToBluesky(postText);
-      client.say(target, success ? 'ok' : 'no');
+      // if nick not found, fall through to store as regular message
     }
+
+    // store non-command messages in history
+    messageHistory.set(nick.toLowerCase(), message);
   });
 
   client.on('error', (err) => {
