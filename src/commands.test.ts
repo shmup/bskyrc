@@ -75,6 +75,7 @@ describe("parseQuoteCommand", () => {
 			type: "quote",
 			targetNick: "bob",
 			additionalText: undefined,
+			imageUrls: undefined,
 		});
 	});
 
@@ -84,6 +85,29 @@ describe("parseQuoteCommand", () => {
 			type: "quote",
 			targetNick: "alice",
 			additionalText: "lol so true",
+			imageUrls: undefined,
+		});
+	});
+
+	test("parses quote command with image url", () => {
+		const result = parseQuoteCommand("quote bob https://example.com/image.jpg");
+		expect(result).toEqual({
+			type: "quote",
+			targetNick: "bob",
+			additionalText: undefined,
+			imageUrls: ["https://example.com/image.jpg"],
+		});
+	});
+
+	test("parses quote command with text and image url", () => {
+		const result = parseQuoteCommand(
+			"quote alice lol https://example.com/a.png",
+		);
+		expect(result).toEqual({
+			type: "quote",
+			targetNick: "alice",
+			additionalText: "lol",
+			imageUrls: ["https://example.com/a.png"],
 		});
 	});
 
@@ -93,6 +117,7 @@ describe("parseQuoteCommand", () => {
 			type: "quote",
 			targetNick: "bob",
 			additionalText: "extra text",
+			imageUrls: undefined,
 		});
 	});
 
@@ -102,6 +127,7 @@ describe("parseQuoteCommand", () => {
 			type: "quote",
 			targetNick: "bob",
 			additionalText: undefined,
+			imageUrls: undefined,
 		});
 	});
 
@@ -118,6 +144,18 @@ describe("parseReplyCommand", () => {
 		expect(result).toEqual({
 			type: "reply",
 			text: "this is a reply",
+			imageUrls: undefined,
+		});
+	});
+
+	test("parses reply command with image url", () => {
+		const result = parseReplyCommand(
+			"reply check this https://example.com/pic.jpeg",
+		);
+		expect(result).toEqual({
+			type: "reply",
+			text: "check this",
+			imageUrls: ["https://example.com/pic.jpeg"],
 		});
 	});
 
@@ -126,6 +164,7 @@ describe("parseReplyCommand", () => {
 		expect(result).toEqual({
 			type: "reply",
 			text: "some text",
+			imageUrls: undefined,
 		});
 	});
 
@@ -134,6 +173,7 @@ describe("parseReplyCommand", () => {
 		expect(result).toEqual({
 			type: "reply",
 			text: "hello",
+			imageUrls: undefined,
 		});
 	});
 

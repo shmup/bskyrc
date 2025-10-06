@@ -120,7 +120,7 @@ async function main() {
 					postText += ` ${command.additionalText}`;
 				}
 
-				const result = await postToBluesky(agent, postText);
+				const result = await postToBluesky(agent, postText, command.imageUrls);
 				client.say(target, result.success ? "ok" : "no");
 				return;
 			}
@@ -134,7 +134,7 @@ async function main() {
 					const result = await postToBluesky(
 						agent,
 						command.text,
-						undefined,
+						command.imageUrls,
 						replyData,
 					);
 					client.say(target, result.success ? "ok" : "no");

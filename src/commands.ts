@@ -9,11 +9,13 @@ export type QuoteCommand = {
 	type: "quote";
 	targetNick: string;
 	additionalText?: string;
+	imageUrls?: string[];
 };
 
 export type ReplyCommand = {
 	type: "reply";
 	text: string;
+	imageUrls?: string[];
 };
 
 export type UntwitCommand = {
@@ -29,6 +31,24 @@ export type Command =
 	| null;
 
 /**
+ * helper function to extract image urls from text
+ */
+function extractImageUrls(text: string): {
+	cleanText: string;
+	imageUrls?: string[];
+} {
+	const imageUrlPattern =
+		/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp|bmp)(\?\S*)?/gi;
+	const imageUrls = text.match(imageUrlPattern);
+	const cleanText = text.replace(imageUrlPattern, "").trim();
+
+	return {
+		cleanText,
+		imageUrls: imageUrls || undefined,
+	};
+}
+
+/**
  * parse a message to see if it matches the twit command pattern
  */
 export function parseTwitCommand(message: string): TwitCommand | null {
@@ -36,19 +56,12 @@ export function parseTwitCommand(message: string): TwitCommand | null {
 	if (!match) return null;
 
 	const [, fullText] = match;
-
-	// extract image urls from the text
-	const imageUrlPattern =
-		/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp|bmp)(\?\S*)?/gi;
-	const imageUrls = fullText.match(imageUrlPattern);
-
-	// remove image urls from the text to get clean post text
-	const text = fullText.replace(imageUrlPattern, "").trim();
+	const { cleanText, imageUrls } = extractImageUrls(fullText);
 
 	return {
 		type: "twit",
-		text,
-		imageUrls: imageUrls || undefined,
+		text: cleanText,
+		imageUrls,
 	};
 }
 
@@ -60,10 +73,22 @@ export function parseQuoteCommand(message: string): QuoteCommand | null {
 	if (!match) return null;
 
 	const [, targetNick, additionalText] = match;
+
+	// extract images from additional text if present
+	let cleanAdditionalText: string | undefined;
+	let imageUrls: string[] | undefined;
+
+	if (additionalText) {
+		const extracted = extractImageUrls(additionalText.trim());
+		cleanAdditionalText = extracted.cleanText || undefined;
+		imageUrls = extracted.imageUrls;
+	}
+
 	return {
 		type: "quote",
 		targetNick,
-		additionalText: additionalText?.trim(),
+		additionalText: cleanAdditionalText,
+		imageUrls,
 	};
 }
 
@@ -74,10 +99,13 @@ export function parseReplyCommand(message: string): ReplyCommand | null {
 	const match = message.match(/^reply\s+(.+)$/i);
 	if (!match) return null;
 
-	const [, text] = match;
+	const [, fullText] = match;
+	const { cleanText, imageUrls } = extractImageUrls(fullText);
+
 	return {
 		type: "reply",
-		text: text.trim(),
+		text: cleanText,
+		imageUrls,
 	};
 }
 
