@@ -29,6 +29,13 @@ const agent = new BskyAgent({
 // store recent messages per user for quote functionality
 const messageHistory = new Map<string, string>();
 
+// track last post made by bot for untwit functionality
+let lastPostUri: string | null = null;
+let lastPostTimestamp: number | null = null;
+
+// track last bluesky url linked in channel for reply functionality
+let lastBskyUrl: string | null = null;
+
 // initialize irc client
 const client = new irc.Client();
 client.connect({
@@ -51,11 +58,22 @@ interface PostData {
 			image: unknown;
 		}>;
 	};
+	reply?: {
+		root: {
+			uri: string;
+			cid: string;
+		};
+		parent: {
+			uri: string;
+			cid: string;
+		};
+	};
 }
 
 async function postToBluesky(
 	text: string,
 	imageUrl?: string,
+	replyTo?: { uri: string; cid: string },
 ): Promise<boolean> {
 	try {
 		const rt = new RichText({ text });
@@ -65,6 +83,14 @@ async function postToBluesky(
 			text: rt.text,
 			facets: rt.facets,
 		};
+
+		// add reply data if this is a reply
+		if (replyTo) {
+			postData.reply = {
+				root: replyTo,
+				parent: replyTo,
+			};
+		}
 
 		// handle image embedding if url provided
 		if (imageUrl) {
@@ -99,9 +125,83 @@ async function postToBluesky(
 		const response = await agent.post(postData);
 		const postUrl = `https://bsky.app/profile/${agent.session?.handle}/post/${response.uri.split("/").pop()}`;
 		console.log("Posted to Bluesky:", postUrl);
+
+		// store post info for untwit functionality
+		lastPostUri = response.uri;
+		lastPostTimestamp = Date.now();
+
 		return true;
 	} catch (err) {
 		console.error("Failed to post to Bluesky:", err);
+		return false;
+	}
+}
+
+async function parseBlueskyUrl(
+	url: string,
+): Promise<{ uri: string; cid: string } | null> {
+	try {
+		// extract handle and post id from url
+		// format: https://bsky.app/profile/{handle}/post/{postId}
+		const match = url.match(
+			/https?:\/\/bsky\.app\/profile\/([^/]+)\/post\/([^/\s]+)/i,
+		);
+		if (!match) return null;
+
+		const [, handle, postId] = match;
+
+		// resolve handle to did
+		const profile = await agent.getProfile({ actor: handle });
+		const did = profile.data.did;
+
+		// construct at-uri
+		const uri = `at://${did}/app.bsky.feed.post/${postId}`;
+
+		// fetch the post to get the cid
+		const post = await agent.getPost({ repo: did, rkey: postId });
+		const cid = post.cid;
+
+		return { uri, cid };
+	} catch (err) {
+		console.error("Failed to parse Bluesky URL:", err);
+		return null;
+	}
+}
+
+async function deleteLastPost(forceDelete = false): Promise<boolean> {
+	try {
+		// if we don't have a cached post, fetch the most recent one
+		if (!lastPostUri) {
+			const feed = await agent.getAuthorFeed({
+				actor: agent.session?.did || "",
+				limit: 1,
+			});
+
+			if (!feed.data.feed.length) {
+				return false;
+			}
+
+			const post = feed.data.feed[0].post;
+			lastPostUri = post.uri;
+			// extract timestamp from post indexedAt
+			lastPostTimestamp = new Date(post.indexedAt).getTime();
+		}
+
+		// check if post is within 1 hour unless force delete
+		if (!forceDelete && lastPostTimestamp) {
+			const hourInMs = 60 * 60 * 1000;
+			if (Date.now() - lastPostTimestamp > hourInMs) {
+				return false;
+			}
+		}
+
+		await agent.deletePost(lastPostUri);
+		console.log("Deleted post:", lastPostUri);
+		lastPostUri = null;
+		lastPostTimestamp = null;
+		return true;
+	} catch (err) {
+		console.error("Failed to delete post:", err);
 		return false;
 	}
 }
@@ -174,6 +274,51 @@ async function main() {
 				return;
 			}
 			// if nick not found, fall through to store as regular message
+		}
+
+		// handle "reply" command - reply to last url linked in channel
+		const replyMatch = message.match(/^reply\s+(.+)$/i);
+		if (replyMatch) {
+			const [, text] = replyMatch;
+
+			if (lastBskyUrl) {
+				const replyData = await parseBlueskyUrl(lastBskyUrl);
+				if (replyData) {
+					const success = await postToBluesky(
+						text.trim(),
+						undefined,
+						replyData,
+					);
+					client.say(target, success ? "ok" : "no");
+				} else {
+					client.say(target, "no");
+				}
+			} else {
+				client.say(target, "no");
+			}
+			return;
+		}
+
+		// handle "untwit!" command - force delete regardless of time
+		if (message.match(/^untwit!$/i)) {
+			const success = await deleteLastPost(true);
+			client.say(target, success ? "ok" : "no");
+			return;
+		}
+
+		// handle "untwit" command - delete if within 1 hour
+		if (message.match(/^untwit$/i)) {
+			const success = await deleteLastPost(false);
+			client.say(target, success ? "ok" : "no");
+			return;
+		}
+
+		// track bluesky urls in messages
+		const bskyUrlMatch = message.match(
+			/https?:\/\/bsky\.app\/profile\/[^/]+\/post\/[^/\s]+/i,
+		);
+		if (bskyUrlMatch) {
+			lastBskyUrl = bskyUrlMatch[0];
 		}
 
 		// store non-command messages in history
