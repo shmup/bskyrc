@@ -1,0 +1,225 @@
+// unit tests for command parsing logic
+import { describe, expect, test } from "bun:test";
+import {
+	extractBlueskyUrl,
+	parseCommand,
+	parseQuoteCommand,
+	parseReplyCommand,
+	parseTwitCommand,
+	parseUntwitCommand,
+} from "./commands.js";
+
+describe("parseTwitCommand", () => {
+	test("parses simple twit command", () => {
+		const result = parseTwitCommand("twit hello world");
+		expect(result).toEqual({
+			type: "twit",
+			text: "hello world",
+			imageUrl: undefined,
+		});
+	});
+
+	test("parses twit command with image url", () => {
+		const result = parseTwitCommand(
+			"twit check this out <https://example.com/image.jpg>",
+		);
+		expect(result).toEqual({
+			type: "twit",
+			text: "check this out",
+			imageUrl: "https://example.com/image.jpg",
+		});
+	});
+
+	test("trims whitespace from text and image url", () => {
+		const result = parseTwitCommand("twit  hello  <  https://example.com  >");
+		expect(result).toEqual({
+			type: "twit",
+			text: "hello",
+			imageUrl: "https://example.com",
+		});
+	});
+
+	test("is case insensitive", () => {
+		const result = parseTwitCommand("TWIT hello");
+		expect(result).toEqual({
+			type: "twit",
+			text: "hello",
+			imageUrl: undefined,
+		});
+	});
+
+	test("returns null for non-twit messages", () => {
+		expect(parseTwitCommand("hello world")).toBeNull();
+		expect(parseTwitCommand("quote bob")).toBeNull();
+		expect(parseTwitCommand("twit")).toBeNull(); // no text
+	});
+});
+
+describe("parseQuoteCommand", () => {
+	test("parses simple quote command", () => {
+		const result = parseQuoteCommand("quote bob");
+		expect(result).toEqual({
+			type: "quote",
+			targetNick: "bob",
+			additionalText: undefined,
+		});
+	});
+
+	test("parses quote command with additional text", () => {
+		const result = parseQuoteCommand("quote alice lol so true");
+		expect(result).toEqual({
+			type: "quote",
+			targetNick: "alice",
+			additionalText: "lol so true",
+		});
+	});
+
+	test("trims additional text", () => {
+		const result = parseQuoteCommand("quote bob   extra text  ");
+		expect(result).toEqual({
+			type: "quote",
+			targetNick: "bob",
+			additionalText: "extra text",
+		});
+	});
+
+	test("is case insensitive", () => {
+		const result = parseQuoteCommand("QUOTE bob");
+		expect(result).toEqual({
+			type: "quote",
+			targetNick: "bob",
+			additionalText: undefined,
+		});
+	});
+
+	test("returns null for non-quote messages", () => {
+		expect(parseQuoteCommand("hello world")).toBeNull();
+		expect(parseQuoteCommand("twit hello")).toBeNull();
+		expect(parseQuoteCommand("quote")).toBeNull(); // no nick
+	});
+});
+
+describe("parseReplyCommand", () => {
+	test("parses reply command", () => {
+		const result = parseReplyCommand("reply this is a reply");
+		expect(result).toEqual({
+			type: "reply",
+			text: "this is a reply",
+		});
+	});
+
+	test("trims text", () => {
+		const result = parseReplyCommand("reply   some text  ");
+		expect(result).toEqual({
+			type: "reply",
+			text: "some text",
+		});
+	});
+
+	test("is case insensitive", () => {
+		const result = parseReplyCommand("REPLY hello");
+		expect(result).toEqual({
+			type: "reply",
+			text: "hello",
+		});
+	});
+
+	test("returns null for non-reply messages", () => {
+		expect(parseReplyCommand("hello world")).toBeNull();
+		expect(parseReplyCommand("reply")).toBeNull(); // no text
+	});
+});
+
+describe("parseUntwitCommand", () => {
+	test("parses untwit command (non-force)", () => {
+		const result = parseUntwitCommand("untwit");
+		expect(result).toEqual({
+			type: "untwit",
+			force: false,
+		});
+	});
+
+	test("parses untwit! command (force)", () => {
+		const result = parseUntwitCommand("untwit!");
+		expect(result).toEqual({
+			type: "untwit",
+			force: true,
+		});
+	});
+
+	test("is case insensitive", () => {
+		expect(parseUntwitCommand("UNTWIT")).toEqual({
+			type: "untwit",
+			force: false,
+		});
+		expect(parseUntwitCommand("UNTWIT!")).toEqual({
+			type: "untwit",
+			force: true,
+		});
+	});
+
+	test("returns null for non-untwit messages", () => {
+		expect(parseUntwitCommand("hello world")).toBeNull();
+		expect(parseUntwitCommand("untwit something")).toBeNull(); // has extra text
+	});
+});
+
+describe("extractBlueskyUrl", () => {
+	test("extracts bluesky url from message", () => {
+		const url = "https://bsky.app/profile/alice.bsky.social/post/3kowrg5ylci2r";
+		const result = extractBlueskyUrl(`check this out ${url}`);
+		expect(result).toBe(url);
+	});
+
+	test("extracts http url (not just https)", () => {
+		const url = "http://bsky.app/profile/alice.bsky.social/post/3kowrg5ylci2r";
+		const result = extractBlueskyUrl(`check this out ${url}`);
+		expect(result).toBe(url);
+	});
+
+	test("returns null when no bluesky url present", () => {
+		expect(extractBlueskyUrl("hello world")).toBeNull();
+		expect(extractBlueskyUrl("https://example.com")).toBeNull();
+	});
+
+	test("extracts url from middle of message", () => {
+		const message = `before https://bsky.app/profile/bob.bsky.social/post/abc123 after`;
+		const result = extractBlueskyUrl(message);
+		expect(result).toBe("https://bsky.app/profile/bob.bsky.social/post/abc123");
+	});
+});
+
+describe("parseCommand", () => {
+	test("returns twit command when message is twit", () => {
+		const result = parseCommand("twit hello");
+		expect(result?.type).toBe("twit");
+	});
+
+	test("returns quote command when message is quote", () => {
+		const result = parseCommand("quote bob");
+		expect(result?.type).toBe("quote");
+	});
+
+	test("returns reply command when message is reply", () => {
+		const result = parseCommand("reply hello");
+		expect(result?.type).toBe("reply");
+	});
+
+	test("returns untwit command when message is untwit", () => {
+		const result = parseCommand("untwit");
+		expect(result?.type).toBe("untwit");
+	});
+
+	test("returns null when message is not a command", () => {
+		const result = parseCommand("just a regular message");
+		expect(result).toBeNull();
+	});
+
+	test("prioritizes commands in order: twit, quote, reply, untwit", () => {
+		// if a message could match multiple (unlikely but possible), it should return the first match
+		expect(parseCommand("twit hello")?.type).toBe("twit");
+		expect(parseCommand("quote bob")?.type).toBe("quote");
+		expect(parseCommand("reply hello")?.type).toBe("reply");
+		expect(parseCommand("untwit")?.type).toBe("untwit");
+	});
+});

@@ -1,7 +1,10 @@
 // irc-to-bluesky bot that posts from irc commands to a bluesky account
-import { BskyAgent, RichText } from "@atproto/api";
+import { BskyAgent } from "@atproto/api";
 import dotenv from "dotenv";
 import * as irc from "irc-framework";
+import { deletePost, parseBlueskyUrl, postToBluesky } from "./src/bluesky.js";
+import { extractBlueskyUrl, parseCommand } from "./src/commands.js";
+import { BLUESKY_SERVICE_URL } from "./src/constants.js";
 
 // force local .env to override global environment variables
 dotenv.config({ override: true });
@@ -23,7 +26,7 @@ for (const varName of requiredEnvVars) {
 
 // create bluesky agent
 const agent = new BskyAgent({
-	service: "https://bsky.social",
+	service: BLUESKY_SERVICE_URL,
 });
 
 // store recent messages per user for quote functionality
@@ -46,165 +49,6 @@ client.connect({
 	gecos: process.env.IRC_REALNAME || process.env.IRC_NICKNAME,
 	tls: process.env.IRC_USE_TLS === "true",
 });
-
-// type for bluesky post data
-interface PostData {
-	text: string;
-	facets?: unknown[];
-	embed?: {
-		$type: string;
-		images: Array<{
-			alt: string;
-			image: unknown;
-		}>;
-	};
-	reply?: {
-		root: {
-			uri: string;
-			cid: string;
-		};
-		parent: {
-			uri: string;
-			cid: string;
-		};
-	};
-}
-
-async function postToBluesky(
-	text: string,
-	imageUrl?: string,
-	replyTo?: { uri: string; cid: string },
-): Promise<boolean> {
-	try {
-		const rt = new RichText({ text });
-		await rt.detectFacets(agent);
-
-		const postData: PostData = {
-			text: rt.text,
-			facets: rt.facets,
-		};
-
-		// add reply data if this is a reply
-		if (replyTo) {
-			postData.reply = {
-				root: replyTo,
-				parent: replyTo,
-			};
-		}
-
-		// handle image embedding if url provided
-		if (imageUrl) {
-			try {
-				// fetch the image
-				const response = await fetch(imageUrl);
-				const imageBuffer = await response.arrayBuffer();
-
-				// upload to bluesky
-				const uploadResponse = await agent.uploadBlob(
-					new Uint8Array(imageBuffer),
-					{
-						encoding: response.headers.get("content-type") || "image/jpeg",
-					},
-				);
-
-				postData.embed = {
-					$type: "app.bsky.embed.images",
-					images: [
-						{
-							alt: "",
-							image: uploadResponse.data.blob,
-						},
-					],
-				};
-			} catch (err) {
-				console.error("Failed to embed image:", err);
-				return false;
-			}
-		}
-
-		const response = await agent.post(postData);
-		const postUrl = `https://bsky.app/profile/${agent.session?.handle}/post/${response.uri.split("/").pop()}`;
-		console.log("Posted to Bluesky:", postUrl);
-
-		// store post info for untwit functionality
-		lastPostUri = response.uri;
-		lastPostTimestamp = Date.now();
-
-		return true;
-	} catch (err) {
-		console.error("Failed to post to Bluesky:", err);
-		return false;
-	}
-}
-
-async function parseBlueskyUrl(
-	url: string,
-): Promise<{ uri: string; cid: string } | null> {
-	try {
-		// extract handle and post id from url
-		// format: https://bsky.app/profile/{handle}/post/{postId}
-		const match = url.match(
-			/https?:\/\/bsky\.app\/profile\/([^/]+)\/post\/([^/\s]+)/i,
-		);
-		if (!match) return null;
-
-		const [, handle, postId] = match;
-
-		// resolve handle to did
-		const profile = await agent.getProfile({ actor: handle });
-		const did = profile.data.did;
-
-		// construct at-uri
-		const uri = `at://${did}/app.bsky.feed.post/${postId}`;
-
-		// fetch the post to get the cid
-		const post = await agent.getPost({ repo: did, rkey: postId });
-		const cid = post.cid;
-
-		return { uri, cid };
-	} catch (err) {
-		console.error("Failed to parse Bluesky URL:", err);
-		return null;
-	}
-}
-
-async function deleteLastPost(forceDelete = false): Promise<boolean> {
-	try {
-		// if we don't have a cached post, fetch the most recent one
-		if (!lastPostUri) {
-			const feed = await agent.getAuthorFeed({
-				actor: agent.session?.did || "",
-				limit: 1,
-			});
-
-			if (!feed.data.feed.length) {
-				return false;
-			}
-
-			const post = feed.data.feed[0].post;
-			lastPostUri = post.uri;
-			// extract timestamp from post indexedAt
-			lastPostTimestamp = new Date(post.indexedAt).getTime();
-		}
-
-		// check if post is within 1 hour unless force delete
-		if (!forceDelete && lastPostTimestamp) {
-			const hourInMs = 60 * 60 * 1000;
-			if (Date.now() - lastPostTimestamp > hourInMs) {
-				return false;
-			}
-		}
-
-		await agent.deletePost(lastPostUri);
-		console.log("Deleted post:", lastPostUri);
-		lastPostUri = null;
-		lastPostTimestamp = null;
-		return true;
-	} catch (err) {
-		console.error("Failed to delete post:", err);
-		return false;
-	}
-}
 
 async function main() {
 	// login to bluesky
@@ -246,50 +90,50 @@ async function main() {
 		// only respond to messages in our channel
 		if (target !== process.env.IRC_CHANNEL) return;
 
-		// handle "twit" command
-		const twitMatch = message.match(/^twit\s+(.+?)(?:\s+<(.+)>)?$/i);
-		if (twitMatch) {
-			const [, text, imageUrl] = twitMatch;
+		// try to parse as a command
+		const command = parseCommand(message);
+
+		if (command?.type === "twit") {
 			// store the text being posted (not the command) in history
-			messageHistory.set(nick.toLowerCase(), text.trim());
-			const success = await postToBluesky(text.trim(), imageUrl?.trim());
-			client.say(target, success ? "ok" : "no");
+			messageHistory.set(nick.toLowerCase(), command.text);
+			const result = await postToBluesky(agent, command.text, command.imageUrl);
+			if (result.success && result.uri) {
+				lastPostUri = result.uri;
+				lastPostTimestamp = Date.now();
+			}
+			client.say(target, result.success ? "ok" : "no");
 			return;
 		}
 
-		// handle "quote" command - only if the nick exists in history
-		const quoteMatch = message.match(/^quote\s+(\S+)(?:\s+(.+))?$/i);
-		if (quoteMatch) {
-			const [, targetNick, additionalText] = quoteMatch;
-			const quotedMessage = messageHistory.get(targetNick.toLowerCase());
+		if (command?.type === "quote") {
+			const quotedMessage = messageHistory.get(
+				command.targetNick.toLowerCase(),
+			);
 
 			if (quotedMessage) {
 				let postText = quotedMessage;
-				if (additionalText) {
-					postText += ` ${additionalText.trim()}`;
+				if (command.additionalText) {
+					postText += ` ${command.additionalText}`;
 				}
 
-				const success = await postToBluesky(postText);
-				client.say(target, success ? "ok" : "no");
+				const result = await postToBluesky(agent, postText);
+				client.say(target, result.success ? "ok" : "no");
 				return;
 			}
 			// if nick not found, fall through to store as regular message
 		}
 
-		// handle "reply" command - reply to last url linked in channel
-		const replyMatch = message.match(/^reply\s+(.+)$/i);
-		if (replyMatch) {
-			const [, text] = replyMatch;
-
+		if (command?.type === "reply") {
 			if (lastBskyUrl) {
-				const replyData = await parseBlueskyUrl(lastBskyUrl);
+				const replyData = await parseBlueskyUrl(agent, lastBskyUrl);
 				if (replyData) {
-					const success = await postToBluesky(
-						text.trim(),
+					const result = await postToBluesky(
+						agent,
+						command.text,
 						undefined,
 						replyData,
 					);
-					client.say(target, success ? "ok" : "no");
+					client.say(target, result.success ? "ok" : "no");
 				} else {
 					client.say(target, "no");
 				}
@@ -299,26 +143,25 @@ async function main() {
 			return;
 		}
 
-		// handle "untwit!" command - force delete regardless of time
-		if (message.match(/^untwit!$/i)) {
-			const success = await deleteLastPost(true);
-			client.say(target, success ? "ok" : "no");
-			return;
-		}
-
-		// handle "untwit" command - delete if within 1 hour
-		if (message.match(/^untwit$/i)) {
-			const success = await deleteLastPost(false);
+		if (command?.type === "untwit") {
+			const success = await deletePost(
+				agent,
+				lastPostUri,
+				lastPostTimestamp,
+				command.force,
+			);
+			if (success) {
+				lastPostUri = null;
+				lastPostTimestamp = null;
+			}
 			client.say(target, success ? "ok" : "no");
 			return;
 		}
 
 		// track bluesky urls in messages
-		const bskyUrlMatch = message.match(
-			/https?:\/\/bsky\.app\/profile\/[^/]+\/post\/[^/\s]+/i,
-		);
-		if (bskyUrlMatch) {
-			lastBskyUrl = bskyUrlMatch[0];
+		const bskyUrl = extractBlueskyUrl(message);
+		if (bskyUrl) {
+			lastBskyUrl = bskyUrl;
 		}
 
 		// store non-command messages in history
