@@ -55,7 +55,7 @@ export function parseTwitCommand(message: string): TwitCommand | null {
 	const match = message.match(/^twit\s+(.+)$/i);
 	if (!match) return null;
 
-	const [, fullText] = match;
+	const fullText = match[1] as string;
 	const { cleanText, imageUrls } = extractImageUrls(fullText);
 
 	return {
@@ -72,7 +72,8 @@ export function parseQuoteCommand(message: string): QuoteCommand | null {
 	const match = message.match(/^quote\s+(\S+)(?:\s+(.+))?$/i);
 	if (!match) return null;
 
-	const [, targetNick, additionalText] = match;
+	const targetNick = match[1] as string;
+	const additionalText = match[2];
 
 	// extract images from additional text if present
 	let cleanAdditionalText: string | undefined;
@@ -99,7 +100,7 @@ export function parseReplyCommand(message: string): ReplyCommand | null {
 	const match = message.match(/^reply\s+(.+)$/i);
 	if (!match) return null;
 
-	const [, fullText] = match;
+	const fullText = match[1] as string;
 	const { cleanText, imageUrls } = extractImageUrls(fullText);
 
 	return {

@@ -1,5 +1,5 @@
 // irc-to-bluesky bot that posts from irc commands to a bluesky account
-import { BskyAgent } from "@atproto/api";
+import { AtpAgent } from "@atproto/api";
 import dotenv from "dotenv";
 import * as irc from "irc-framework";
 import { deletePost, parseBlueskyUrl, postToBluesky } from "./src/bluesky.js";
@@ -24,8 +24,15 @@ for (const varName of requiredEnvVars) {
 	}
 }
 
+// extract validated environment variables as constants
+const IRC_SERVER = process.env.IRC_SERVER as string;
+const IRC_NICKNAME = process.env.IRC_NICKNAME as string;
+const IRC_CHANNEL = process.env.IRC_CHANNEL as string;
+const BLUESKY_USERNAME = process.env.BLUESKY_USERNAME as string;
+const BLUESKY_PASSWORD = process.env.BLUESKY_PASSWORD as string;
+
 // create bluesky agent
-const agent = new BskyAgent({
+const agent = new AtpAgent({
 	service: BLUESKY_SERVICE_URL,
 });
 
@@ -42,25 +49,23 @@ let lastBskyUrl: string | null = null;
 // initialize irc client
 const client = new irc.Client();
 client.connect({
-	host: process.env.IRC_SERVER,
+	host: IRC_SERVER,
 	port: parseInt(process.env.IRC_PORT || "6667", 10),
-	nick: process.env.IRC_NICKNAME,
-	username: process.env.IRC_USERNAME || process.env.IRC_NICKNAME,
-	gecos: process.env.IRC_REALNAME || process.env.IRC_NICKNAME,
+	nick: IRC_NICKNAME,
+	username: process.env.IRC_USERNAME || IRC_NICKNAME,
+	gecos: process.env.IRC_REALNAME || IRC_NICKNAME,
 	tls: process.env.IRC_USE_TLS === "true",
 });
 
 async function main() {
 	// login to bluesky
-	console.log(
-		`Attempting login with username: ${process.env.BLUESKY_USERNAME}`,
-	);
-	await agent.login({
-		identifier: process.env.BLUESKY_USERNAME,
-		password: process.env.BLUESKY_PASSWORD,
+	console.log(`Attempting login with username: ${BLUESKY_USERNAME}`);
+	const session = await agent.login({
+		identifier: BLUESKY_USERNAME,
+		password: BLUESKY_PASSWORD,
 	});
 
-	console.log(`Logged in to Bluesky as ${agent.session?.handle}`);
+	console.log(`Logged in to Bluesky as ${session.data.handle}`);
 
 	client.on("registered", () => {
 		console.log("Connected to IRC");
@@ -71,24 +76,24 @@ async function main() {
 			console.log("Sent NickServ identification");
 		}
 
-		console.log(`Attempting to join ${process.env.IRC_CHANNEL}`);
-		client.join(process.env.IRC_CHANNEL);
+		console.log(`Attempting to join ${IRC_CHANNEL}`);
+		client.join(IRC_CHANNEL);
 	});
 
-	client.on("join", (event) => {
+	client.on("join", (event: irc.JoinEvent) => {
 		if (event.nick === client.user.nick) {
 			console.log(`Joined ${event.channel}`);
 		}
 	});
 
-	client.on("message", async (event) => {
+	client.on("message", async (event: irc.MessageEvent) => {
 		const { nick, message, target } = event;
 
 		// ignore our own messages
 		if (nick === client.user.nick) return;
 
 		// only respond to messages in our channel
-		if (target !== process.env.IRC_CHANNEL) return;
+		if (target !== IRC_CHANNEL) return;
 
 		// try to parse as a command
 		const command = parseCommand(message);
@@ -180,11 +185,11 @@ async function main() {
 		console.log("IRC attempting to reconnect...");
 	});
 
-	client.on("error", (err) => {
+	client.on("error", (err: Error) => {
 		console.error("IRC error:", err);
 	});
 
-	client.on("close", (event) => {
+	client.on("close", (event: unknown) => {
 		console.log(
 			"Disconnected from IRC",
 			event ? `- Reason: ${JSON.stringify(event)}` : "",

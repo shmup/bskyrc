@@ -1,29 +1,19 @@
 // bluesky posting and interaction logic
-import { type BskyAgent, RichText } from "@atproto/api";
+import {
+	type AppBskyFeedPost,
+	type AppBskyRichtextFacet,
+	type AtpAgent,
+	RichText,
+} from "@atproto/api";
 
 import { BLUESKY_APP_URL, ONE_HOUR_MS } from "./constants.js";
 
 // type for bluesky post data
 interface PostData {
 	text: string;
-	facets?: unknown[];
-	embed?: {
-		$type: string;
-		images: Array<{
-			alt: string;
-			image: unknown;
-		}>;
-	};
-	reply?: {
-		root: {
-			uri: string;
-			cid: string;
-		};
-		parent: {
-			uri: string;
-			cid: string;
-		};
-	};
+	facets?: AppBskyRichtextFacet.Main[];
+	embed?: AppBskyFeedPost.Record["embed"];
+	reply?: AppBskyFeedPost.ReplyRef;
 }
 
 export interface ReplyTarget {
@@ -38,7 +28,7 @@ export interface PostResult {
 }
 
 export async function postToBluesky(
-	agent: BskyAgent,
+	agent: AtpAgent,
 	text: string,
 	imageUrls?: string[],
 	replyTo?: ReplyTarget,
@@ -96,7 +86,10 @@ export async function postToBluesky(
 			}
 		}
 
-		const response = await agent.post(postData);
+		const response = await agent.post(
+			postData as Partial<AppBskyFeedPost.Record> &
+				Omit<AppBskyFeedPost.Record, "createdAt">,
+		);
 		const postUrl = `${BLUESKY_APP_URL}/profile/${agent.session?.handle}/post/${response.uri.split("/").pop()}`;
 		console.log("Posted to Bluesky:", postUrl);
 
@@ -112,7 +105,7 @@ export async function postToBluesky(
 }
 
 export async function parseBlueskyUrl(
-	agent: BskyAgent,
+	agent: AtpAgent,
 	url: string,
 ): Promise<ReplyTarget | null> {
 	try {
@@ -123,7 +116,8 @@ export async function parseBlueskyUrl(
 		);
 		if (!match) return null;
 
-		const [, handle, postId] = match;
+		const handle = match[1] as string;
+		const postId = match[2] as string;
 
 		// resolve handle to did
 		const profile = await agent.getProfile({ actor: handle });
@@ -144,7 +138,7 @@ export async function parseBlueskyUrl(
 }
 
 export async function deletePost(
-	agent: BskyAgent,
+	agent: AtpAgent,
 	uri: string | null,
 	timestamp: number | null,
 	forceDelete: boolean,
@@ -164,7 +158,7 @@ export async function deletePost(
 				return false;
 			}
 
-			const post = feed.data.feed[0].post;
+			const post = (feed.data.feed[0] as (typeof feed.data.feed)[0]).post;
 			postUri = post.uri;
 			// extract timestamp from post indexedAt
 			postTimestamp = new Date(post.indexedAt).getTime();
