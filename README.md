@@ -1,67 +1,31 @@
-# bskyrc
+## bskyrc
 
-IRC-to-Bluesky bot that posts from IRC commands to a Bluesky account.
+irc-to-bluesky bot
 
-## Setup
+### setup
 
-1. Copy `.env.template` to `.env` and fill in your credentials:
-   ```bash
-   cp .env.template .env
-   ```
+```bash
+curl -fsSL https://bun.sh/install | bash
+cp .env.template .env # edit .env with your credentials
+bun install
+bun test
+bun start
+```
 
-2. Edit `.env` with your IRC and Bluesky credentials (set `IRC_PASSWORD` if your nick requires NickServ authentication)
+### commands
 
-3. Install dependencies:
-   ```bash
-   bun install
-   ```
-
-4. Run the bot:
-   ```bash
-   bun start
-   ```
-
-## Commands
-
-### Post to Bluesky
 ```
 twit hello world
-```
-
-### Post with an image
-```
-twit hello world https://example.com/image.jpg
-```
-
-Image URLs are automatically detected and embedded (supports .jpg, .jpeg, .png, .gif, .webp, .bmp). Query strings are supported (e.g., `image.jpg?size=large`). Multiple images (up to 4) are supported.
-
-### Quote someone's last message
-```
+twit check this out https://example.com/image.jpg
 quote usernick
-```
-
-### Quote with additional text
-```
-quote usernick foo bar
-```
-This will post usernick's last message followed by "foo bar" on a new line.
-
-### Reply to a post
-```
+quote usernick with extra text
 reply this is my reply
-```
-Replies to the last Bluesky URL posted in the channel. Supports images like `twit`.
-
-### Delete your last post
-```
 untwit
 ```
-Deletes your last post (within time limit). Use `untwit!` to force delete.
 
-## Features
+### features
 
-- Posts appear as natural Bluesky posts without IRC nick formatting
-- Stores message history to support quoting
-- Supports image embedding
-- NickServ authentication support
-- Case-insensitive command handling
+- supports posting text and images to bluesky
+- replies to last bluesky post in channel
+- quoting from message history
+- untwit to delete last bluesky post in channel
