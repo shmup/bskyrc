@@ -7,36 +7,38 @@ describe("end-to-end user scenarios", () => {
 		const messageHistory = new Map<string, string>();
 		let lastPostUri: string | null = null;
 
-		// step 1: alice posts a twit
-		const aliceMessage = "twit excited about the new features!";
-		const aliceCmd = parseCommand(aliceMessage);
+		// step 1: tim posts a twit
+		const timMessage = "twit fired up the turbo drill";
+		const timCmd = parseCommand(timMessage);
 
-		expect(aliceCmd?.type).toBe("twit");
-		if (aliceCmd?.type === "twit") {
-			// store alice's text in history
-			messageHistory.set("alice", aliceCmd.text);
+		expect(timCmd?.type).toBe("twit");
+		if (timCmd?.type === "twit") {
+			// store tim's text in history
+			messageHistory.set("tim", timCmd.text);
 			// simulate successful post
-			lastPostUri = "at://did:plc:alice/app.bsky.feed.post/abc123";
+			lastPostUri = "at://did:plc:tim/app.bsky.feed.post/abc123";
 		}
 
-		// step 2: bob quotes alice's last message
-		const bobMessage = "quote alice totally agree!";
-		const bobCmd = parseCommand(bobMessage);
+		// step 2: al quotes tim's last message
+		const alMessage = "quote tim remember to wear safety goggles";
+		const alCmd = parseCommand(alMessage);
 
-		expect(bobCmd?.type).toBe("quote");
-		if (bobCmd?.type === "quote") {
-			const quotedText = messageHistory.get(bobCmd.targetNick.toLowerCase());
-			expect(quotedText).toBe("excited about the new features!");
+		expect(alCmd?.type).toBe("quote");
+		if (alCmd?.type === "quote") {
+			const quotedText = messageHistory.get(alCmd.targetNick.toLowerCase());
+			expect(quotedText).toBe("fired up the turbo drill");
 
 			let postText = quotedText || "";
-			if (bobCmd.additionalText) {
-				postText += ` ${bobCmd.additionalText}`;
+			if (alCmd.additionalText) {
+				postText += ` ${alCmd.additionalText}`;
 			}
 
-			expect(postText).toBe("excited about the new features! totally agree!");
+			expect(postText).toBe(
+				"fired up the turbo drill remember to wear safety goggles",
+			);
 		}
 
-		// step 3: alice realizes she made a mistake and untwits
+		// step 3: tim realizes he made a mistake and untwits
 		const untwitMessage = "untwit";
 		const untwitCmd = parseCommand(untwitMessage);
 
@@ -51,29 +53,29 @@ describe("end-to-end user scenarios", () => {
 	test("scenario: user shares bsky link, then someone replies to it", () => {
 		let lastBskyUrl: string | null = null;
 
-		// step 1: alice shares a bluesky link
-		const aliceMessage =
-			"check this out https://bsky.app/profile/example.bsky.social/post/xyz789";
-		const cmd = parseCommand(aliceMessage);
+		// step 1: tim shares a bluesky link
+		const timMessage =
+			"look at these power tools https://bsky.app/profile/example.bsky.social/post/xyz789";
+		const cmd = parseCommand(timMessage);
 
 		// not a command, just a regular message with a url
 		expect(cmd).toBeNull();
 
 		// extract and track the url
-		const url = extractBlueskyUrl(aliceMessage);
+		const url = extractBlueskyUrl(timMessage);
 		expect(url).toBe(
 			"https://bsky.app/profile/example.bsky.social/post/xyz789",
 		);
 		lastBskyUrl = url;
 
-		// step 2: bob replies to that post
-		const bobMessage = "reply this is so cool!";
-		const bobCmd = parseCommand(bobMessage);
+		// step 2: al replies to that post
+		const alMessage = "reply proper torque specs are critical";
+		const alCmd = parseCommand(alMessage);
 
-		expect(bobCmd?.type).toBe("reply");
-		if (bobCmd?.type === "reply") {
+		expect(alCmd?.type).toBe("reply");
+		if (alCmd?.type === "reply") {
 			expect(lastBskyUrl).not.toBeNull();
-			expect(bobCmd.text).toBe("this is so cool!");
+			expect(alCmd.text).toBe("proper torque specs are critical");
 			// would use lastBskyUrl to construct reply data
 		}
 	});
@@ -81,19 +83,19 @@ describe("end-to-end user scenarios", () => {
 	test("scenario: quote fails because user has no message history", () => {
 		const messageHistory = new Map<string, string>();
 
-		// alice has never spoken
-		const bobMessage = "quote alice";
-		const bobCmd = parseCommand(bobMessage);
+		// tim has never spoken
+		const alMessage = "quote tim";
+		const alCmd = parseCommand(alMessage);
 
-		expect(bobCmd?.type).toBe("quote");
-		if (bobCmd?.type === "quote") {
-			const quotedText = messageHistory.get(bobCmd.targetNick.toLowerCase());
+		expect(alCmd?.type).toBe("quote");
+		if (alCmd?.type === "quote") {
+			const quotedText = messageHistory.get(alCmd.targetNick.toLowerCase());
 			expect(quotedText).toBeUndefined();
-			// would respond with "no" and fall through to store "quote alice" as message
-			messageHistory.set("bob", bobMessage);
+			// would respond with "no" and fall through to store "quote tim" as message
+			messageHistory.set("al", alMessage);
 		}
 
-		expect(messageHistory.get("bob")).toBe("quote alice");
+		expect(messageHistory.get("al")).toBe("quote tim");
 	});
 
 	test("scenario: multiple users chatting and using commands", () => {
@@ -104,11 +106,11 @@ describe("end-to-end user scenarios", () => {
 			nick: string;
 			message: string;
 		}> = [
-			{ nick: "alice", message: "hey everyone!" },
-			{ nick: "bob", message: "hi alice" },
-			{ nick: "alice", message: "twit working on something cool" },
-			{ nick: "charlie", message: "quote alice nice!" },
-			{ nick: "bob", message: "what are you working on?" },
+			{ nick: "tim", message: "aargh aargh aargh" },
+			{ nick: "al", message: "afternoon tim" },
+			{ nick: "tim", message: "twit installing a turbo grinder" },
+			{ nick: "wilson", message: "quote tim neighborino!" },
+			{ nick: "al", message: "did you read the manual" },
 		];
 
 		for (const { nick, message } of messages) {
@@ -132,32 +134,31 @@ describe("end-to-end user scenarios", () => {
 		}
 
 		// verify final state
-		expect(messageHistory.get("alice")).toBe("working on something cool");
-		expect(messageHistory.get("bob")).toBe("what are you working on?");
-		expect(messageHistory.get("charlie")).toBeUndefined(); // charlie only used quote command
+		expect(messageHistory.get("tim")).toBe("installing a turbo grinder");
+		expect(messageHistory.get("al")).toBe("did you read the manual");
+		expect(messageHistory.get("wilson")).toBeUndefined(); // wilson only used quote command
 	});
 
 	test("scenario: twit with image url", () => {
 		const messageHistory = new Map<string, string>();
 
-		const message = "twit check out my screenshot https://example.com/img.png";
+		const message = "twit check out this hot rod https://example.com/img.png";
 		const cmd = parseCommand(message);
 
 		expect(cmd?.type).toBe("twit");
 		if (cmd?.type === "twit") {
-			expect(cmd.text).toBe("check out my screenshot");
+			expect(cmd.text).toBe("check out this hot rod");
 			expect(cmd.imageUrls).toEqual(["https://example.com/img.png"]);
 			// would fetch and embed the image
 
-			messageHistory.set("alice", cmd.text);
+			messageHistory.set("tim", cmd.text);
 		}
 
-		expect(messageHistory.get("alice")).toBe("check out my screenshot");
+		expect(messageHistory.get("tim")).toBe("check out this hot rod");
 	});
 
 	test("scenario: force untwit with ! for posts older than 1 hour", () => {
-		let lastPostUri: string | null =
-			"at://did:plc:alice/app.bsky.feed.post/old";
+		let lastPostUri: string | null = "at://did:plc:tim/app.bsky.feed.post/old";
 		let lastPostTimestamp: number | null = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
 
 		// regular untwit would fail (>1 hour)
@@ -200,10 +201,10 @@ describe("end-to-end user scenarios", () => {
 		let lastBskyUrl: string | null = null;
 
 		const messages = [
-			"https://bsky.app/profile/alice.bsky.social/post/first",
-			"that's interesting",
-			"https://bsky.app/profile/bob.bsky.social/post/second",
-			"even better!",
+			"https://bsky.app/profile/tim.bsky.social/post/first",
+			"needs more horsepower",
+			"https://bsky.app/profile/al.bsky.social/post/second",
+			"measure twice cut once",
 		];
 
 		for (const msg of messages) {
@@ -215,7 +216,7 @@ describe("end-to-end user scenarios", () => {
 
 		// should track the most recent url
 		expect(lastBskyUrl).toBe(
-			"https://bsky.app/profile/bob.bsky.social/post/second",
+			"https://bsky.app/profile/al.bsky.social/post/second",
 		);
 	});
 });

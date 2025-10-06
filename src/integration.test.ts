@@ -11,16 +11,16 @@ describe("message history integration", () => {
 		const messageHistory = new Map<string, string>();
 
 		// simulate receiving messages from different users
-		messageHistory.set("alice", "I love typescript");
-		messageHistory.set("bob", "bun is amazing");
+		messageHistory.set("tim", "more power!");
+		messageHistory.set("al", "i don't think so tim");
 
 		// simulate quote command
-		const quoteCmd = parseQuoteCommand("quote alice");
+		const quoteCmd = parseQuoteCommand("quote tim");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
 			const quotedMessage = messageHistory.get(quoteCmd.targetNick);
-			expect(quotedMessage).toBe("I love typescript");
+			expect(quotedMessage).toBe("more power!");
 		}
 	});
 
@@ -28,64 +28,64 @@ describe("message history integration", () => {
 		const messageHistory = new Map<string, string>();
 
 		// store with lowercase (as the bot does)
-		messageHistory.set("alice", "hello world");
+		messageHistory.set("tim", "let's soup it up");
 
 		// quote with different case
-		const quoteCmd = parseQuoteCommand("quote ALICE");
+		const quoteCmd = parseQuoteCommand("quote TIM");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
 			const quotedMessage = messageHistory.get(
 				quoteCmd.targetNick.toLowerCase(),
 			);
-			expect(quotedMessage).toBe("hello world");
+			expect(quotedMessage).toBe("let's soup it up");
 		}
 	});
 
 	test("twit command text gets stored in history, not the command itself", () => {
 		const messageHistory = new Map<string, string>();
 
-		// simulate twit command from alice
-		const twitCmd = parseCommand("twit hello world");
+		// simulate twit command from tim
+		const twitCmd = parseCommand("twit grunts intensify");
 		if (twitCmd?.type === "twit") {
 			// bot stores the text being posted, not the command
-			messageHistory.set("alice", twitCmd.text);
+			messageHistory.set("tim", twitCmd.text);
 		}
 
-		expect(messageHistory.get("alice")).toBe("hello world");
+		expect(messageHistory.get("tim")).toBe("grunts intensify");
 	});
 
 	test("non-command messages get stored as-is", () => {
 		const messageHistory = new Map<string, string>();
 
-		const message = "just a regular chat message";
+		const message = "flannel looks good today";
 		const cmd = parseCommand(message);
 
 		// not a command, so store as regular message
 		if (!cmd) {
-			messageHistory.set("bob", message);
+			messageHistory.set("al", message);
 		}
 
-		expect(messageHistory.get("bob")).toBe(message);
+		expect(messageHistory.get("al")).toBe(message);
 	});
 
 	test("failed quote falls through to message storage", () => {
 		const messageHistory = new Map<string, string>();
 
 		// quote command for non-existent user should fail
-		const quoteCmd = parseQuoteCommand("quote charlie");
+		const quoteCmd = parseQuoteCommand("quote wilson");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
 			const quotedMessage = messageHistory.get(
 				quoteCmd.targetNick.toLowerCase(),
 			);
-			// charlie has no message history
+			// wilson has no message history
 			expect(quotedMessage).toBeUndefined();
 
-			// the message "quote charlie" itself would be stored if quote fails
-			messageHistory.set("alice", "quote charlie");
-			expect(messageHistory.get("alice")).toBe("quote charlie");
+			// the message "quote wilson" itself would be stored if quote fails
+			messageHistory.set("tim", "quote wilson");
+			expect(messageHistory.get("tim")).toBe("quote wilson");
 		}
 	});
 });
@@ -97,7 +97,7 @@ describe("bluesky url tracking integration", () => {
 		// simulate messages
 		const messages = [
 			"hey check this out",
-			"https://bsky.app/profile/alice.bsky.social/post/abc123",
+			"https://bsky.app/profile/tim.bsky.social/post/abc123",
 			"that's cool",
 		];
 
@@ -109,7 +109,7 @@ describe("bluesky url tracking integration", () => {
 		}
 
 		expect(lastBskyUrl).toBe(
-			"https://bsky.app/profile/alice.bsky.social/post/abc123",
+			"https://bsky.app/profile/tim.bsky.social/post/abc123",
 		);
 	});
 
@@ -117,9 +117,9 @@ describe("bluesky url tracking integration", () => {
 		let lastBskyUrl: string | null = null;
 
 		const messages = [
-			"https://bsky.app/profile/alice.bsky.social/post/abc123",
+			"https://bsky.app/profile/tim.bsky.social/post/abc123",
 			"some other message",
-			"https://bsky.app/profile/bob.bsky.social/post/xyz789",
+			"https://bsky.app/profile/al.bsky.social/post/xyz789",
 		];
 
 		for (const msg of messages) {
@@ -131,7 +131,7 @@ describe("bluesky url tracking integration", () => {
 
 		// should be the most recent url
 		expect(lastBskyUrl).toBe(
-			"https://bsky.app/profile/bob.bsky.social/post/xyz789",
+			"https://bsky.app/profile/al.bsky.social/post/xyz789",
 		);
 	});
 
@@ -145,7 +145,7 @@ describe("bluesky url tracking integration", () => {
 		expect(lastBskyUrl).toBeNull();
 
 		// after tracking a url
-		lastBskyUrl = "https://bsky.app/profile/alice.bsky.social/post/abc123";
+		lastBskyUrl = "https://bsky.app/profile/tim.bsky.social/post/abc123";
 		expect(lastBskyUrl).not.toBeNull();
 	});
 });
@@ -155,7 +155,7 @@ describe("command priority integration", () => {
 		const messageHistory = new Map<string, string>();
 
 		// simulate a message that doesn't match any command pattern
-		const message = "just chatting about stuff";
+		const message = "just chatting about tools";
 
 		// parseCommand will try twit first, then quote, then reply, then untwit
 		const cmd = parseCommand(message);
@@ -164,35 +164,35 @@ describe("command priority integration", () => {
 		expect(cmd).toBeNull();
 
 		// which means it would be stored as a regular message
-		messageHistory.set("alice", message);
-		expect(messageHistory.get("alice")).toBe(message);
+		messageHistory.set("tim", message);
+		expect(messageHistory.get("tim")).toBe(message);
 	});
 
 	test("valid command prevents message from being stored as regular message", () => {
 		const messageHistory = new Map<string, string>();
 
-		const message = "twit hello world";
+		const message = "twit binford tools rock";
 		const cmd = parseCommand(message);
 
 		if (cmd?.type === "twit") {
 			// store the text being posted, not the command
-			messageHistory.set("alice", cmd.text);
-			// return early, don't store "twit hello world"
+			messageHistory.set("tim", cmd.text);
+			// return early, don't store "twit binford tools rock"
 		} else {
-			messageHistory.set("alice", message);
+			messageHistory.set("tim", message);
 		}
 
 		// should store just the text
-		expect(messageHistory.get("alice")).toBe("hello world");
+		expect(messageHistory.get("tim")).toBe("binford tools rock");
 	});
 });
 
 describe("quote with additional text integration", () => {
 	test("combines quoted message with additional text", () => {
 		const messageHistory = new Map<string, string>();
-		messageHistory.set("bob", "I think TypeScript is great");
+		messageHistory.set("al", "proper safety equipment is important");
 
-		const quoteCmd = parseQuoteCommand("quote bob lol so true");
+		const quoteCmd = parseQuoteCommand("quote al exactly right");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
@@ -205,7 +205,9 @@ describe("quote with additional text integration", () => {
 				postText += ` ${quoteCmd.additionalText}`;
 			}
 
-			expect(postText).toBe("I think TypeScript is great lol so true");
+			expect(postText).toBe(
+				"proper safety equipment is important exactly right",
+			);
 		}
 	});
 });
