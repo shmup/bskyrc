@@ -260,6 +260,18 @@ export async function getLastPost(
 			success: true,
 		};
 	} catch (err) {
+		// profile not found - return "who?"
+		if (
+			err &&
+			typeof err === "object" &&
+			"message" in err &&
+			typeof err.message === "string" &&
+			err.message.includes("Profile not found")
+		) {
+			console.log(`Profile not found: ${handle}`);
+			return { message: "who?", success: true };
+		}
+		// other errors - log and return failure
 		console.error("Failed to get last post:", err);
 		return { success: false };
 	}
