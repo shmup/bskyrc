@@ -14,7 +14,7 @@
 		"*": "bun run format:staged"
 	},
 	"module": "index.ts",
-	"name": "douglbutt",
+	"name": "bskyrc",
 	"peerDependencies": {
 		"typescript": "^5"
 	},

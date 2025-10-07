@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "douglbutt",
+      "name": "bskyrc",
       "dependencies": {
         "@atproto/api": "^0.17.0",
         "dotenv": "^17.2.3",
