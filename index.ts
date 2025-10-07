@@ -223,6 +223,10 @@ async function main() {
 					? `${result.message} ${result.url}`
 					: result.message;
 				client.say(target, message);
+				// track the url for reply functionality
+				if (result.url) {
+					lastBskyUrl = result.url;
+				}
 			} else {
 				client.say(target, "no");
 			}
