@@ -1,14 +1,10 @@
 // irc-to-bluesky bot that posts from irc commands to a bluesky account
+
+import { watch } from "node:fs";
 import { AtpAgent } from "@atproto/api";
 import dotenv from "dotenv";
 import * as irc from "irc-framework";
-import {
-	deletePost,
-	getLastPost,
-	parseBlueskyUrl,
-	postToBluesky,
-} from "./src/bluesky.js";
-import { extractBlueskyUrl, parseCommand } from "./src/commands.js";
+import type { Command } from "./src/commands.js";
 import { BLUESKY_SERVICE_URL } from "./src/constants.js";
 
 // force local .env to override global environment variables
@@ -41,6 +37,45 @@ const BLUESKY_PASSWORD = process.env.BLUESKY_PASSWORD as string;
 // create bluesky agent
 const agent = new AtpAgent({
 	service: BLUESKY_SERVICE_URL,
+});
+
+// hot-reloadable command handlers
+let commandHandlers: {
+	parseCommand: (message: string) => Command;
+	extractBlueskyUrl: (message: string) => string | null;
+} = await import("./src/commands.js");
+
+// hot-reloadable bluesky handlers
+let blueskyHandlers: typeof import("./src/bluesky.js") = await import(
+	"./src/bluesky.js"
+);
+
+// watch commands.ts for changes and reload
+watch("./src/commands.ts", async (event) => {
+	if (event === "change") {
+		console.log("Commands module changed, reloading...");
+		try {
+			// dynamic import with cache busting
+			commandHandlers = await import(`./src/commands.js?t=${Date.now()}`);
+			console.log("Commands module reloaded successfully");
+		} catch (err) {
+			console.error("Failed to reload commands module:", err);
+		}
+	}
+});
+
+// watch bluesky.ts for changes and reload
+watch("./src/bluesky.ts", async (event) => {
+	if (event === "change") {
+		console.log("Bluesky module changed, reloading...");
+		try {
+			// dynamic import with cache busting
+			blueskyHandlers = await import(`./src/bluesky.js?t=${Date.now()}`);
+			console.log("Bluesky module reloaded successfully");
+		} catch (err) {
+			console.error("Failed to reload bluesky module:", err);
+		}
+	}
 });
 
 // store recent messages per user for quote functionality
@@ -103,12 +138,12 @@ async function main() {
 		if (target !== IRC_CHANNEL) return;
 
 		// try to parse as a command
-		const command = parseCommand(message);
+		const command = commandHandlers.parseCommand(message);
 
 		if (command?.type === "twit") {
 			// store the text being posted (not the command) in history
 			messageHistory.set(nick.toLowerCase(), command.text);
-			const result = await postToBluesky(
+			const result = await blueskyHandlers.postToBluesky(
 				agent,
 				command.text,
 				command.imageUrls,
@@ -132,7 +167,11 @@ async function main() {
 					postText += ` ${command.additionalText}`;
 				}
 
-				const result = await postToBluesky(agent, postText, command.imageUrls);
+				const result = await blueskyHandlers.postToBluesky(
+					agent,
+					postText,
+					command.imageUrls,
+				);
 				client.say(target, result.success ? "ok" : "no");
 				return;
 			}
@@ -141,9 +180,12 @@ async function main() {
 
 		if (command?.type === "reply") {
 			if (lastBskyUrl) {
-				const replyData = await parseBlueskyUrl(agent, lastBskyUrl);
+				const replyData = await blueskyHandlers.parseBlueskyUrl(
+					agent,
+					lastBskyUrl,
+				);
 				if (replyData) {
-					const result = await postToBluesky(
+					const result = await blueskyHandlers.postToBluesky(
 						agent,
 						command.text,
 						command.imageUrls,
@@ -160,7 +202,7 @@ async function main() {
 		}
 
 		if (command?.type === "untwit") {
-			const success = await deletePost(
+			const success = await blueskyHandlers.deletePost(
 				agent,
 				lastPostUri,
 				lastPostTimestamp,
@@ -175,7 +217,7 @@ async function main() {
 		}
 
 		if (command?.type === "sup") {
-			const result = await getLastPost(agent, command.handle);
+			const result = await blueskyHandlers.getLastPost(agent, command.handle);
 			if (result.success && result.message) {
 				client.say(target, result.message);
 			} else {
@@ -185,7 +227,7 @@ async function main() {
 		}
 
 		// track bluesky urls in messages
-		const bskyUrl = extractBlueskyUrl(message);
+		const bskyUrl = commandHandlers.extractBlueskyUrl(message);
 		if (bskyUrl) {
 			lastBskyUrl = bskyUrl;
 		}
