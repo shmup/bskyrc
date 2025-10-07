@@ -219,7 +219,10 @@ async function main() {
 		if (command?.type === "sup") {
 			const result = await blueskyHandlers.getLastPost(agent, command.handle);
 			if (result.success && result.message) {
-				client.say(target, result.message);
+				const message = result.url
+					? `${result.message} ${result.url}`
+					: result.message;
+				client.say(target, message);
 			} else {
 				client.say(target, "no");
 			}

@@ -193,6 +193,7 @@ function normalizeHandle(handle: string): string {
 export interface LastPostResult {
 	success: boolean;
 	message?: string;
+	url?: string;
 }
 
 export async function getLastPost(
@@ -254,10 +255,12 @@ export async function getLastPost(
 
 		const authorHandle = post.author.handle;
 		const message = `bsky/@${authorHandle}: ${text}`;
+		const postUrl = `${BLUESKY_APP_URL}/profile/${authorHandle}/post/${post.uri.split("/").pop()}`;
 
 		return {
 			message,
 			success: true,
+			url: postUrl,
 		};
 	} catch (err) {
 		// profile not found - return "who?"
