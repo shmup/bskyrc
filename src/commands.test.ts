@@ -13,9 +13,9 @@ describe("parseTwitCommand", () => {
 	test("parses simple twit command", () => {
 		const result = parseTwitCommand("twit hello world");
 		expect(result).toEqual({
-			type: "twit",
-			text: "hello world",
 			imageUrls: undefined,
+			text: "hello world",
+			type: "twit",
 		});
 	});
 
@@ -24,9 +24,9 @@ describe("parseTwitCommand", () => {
 			"twit check this out https://example.com/image.jpg",
 		);
 		expect(result).toEqual({
-			type: "twit",
-			text: "check this out",
 			imageUrls: ["https://example.com/image.jpg"],
+			text: "check this out",
+			type: "twit",
 		});
 	});
 
@@ -35,9 +35,9 @@ describe("parseTwitCommand", () => {
 			"twit check these https://example.com/a.jpg https://example.com/b.png",
 		);
 		expect(result).toEqual({
-			type: "twit",
-			text: "check these",
 			imageUrls: ["https://example.com/a.jpg", "https://example.com/b.png"],
+			text: "check these",
+			type: "twit",
 		});
 	});
 
@@ -46,18 +46,18 @@ describe("parseTwitCommand", () => {
 			"twit photo https://example.com/img.jpg?size=large",
 		);
 		expect(result).toEqual({
-			type: "twit",
-			text: "photo",
 			imageUrls: ["https://example.com/img.jpg?size=large"],
+			text: "photo",
+			type: "twit",
 		});
 	});
 
 	test("is case insensitive", () => {
 		const result = parseTwitCommand("TWIT hello");
 		expect(result).toEqual({
-			type: "twit",
-			text: "hello",
 			imageUrls: undefined,
+			text: "hello",
+			type: "twit",
 		});
 	});
 
@@ -72,60 +72,60 @@ describe("parseQuoteCommand", () => {
 	test("parses simple quote command", () => {
 		const result = parseQuoteCommand("quote al");
 		expect(result).toEqual({
-			type: "quote",
-			targetNick: "al",
 			additionalText: undefined,
 			imageUrls: undefined,
+			targetNick: "al",
+			type: "quote",
 		});
 	});
 
 	test("parses quote command with additional text", () => {
 		const result = parseQuoteCommand("quote tim aargh aargh");
 		expect(result).toEqual({
-			type: "quote",
-			targetNick: "tim",
 			additionalText: "aargh aargh",
 			imageUrls: undefined,
+			targetNick: "tim",
+			type: "quote",
 		});
 	});
 
 	test("parses quote command with image url", () => {
 		const result = parseQuoteCommand("quote al https://example.com/image.jpg");
 		expect(result).toEqual({
-			type: "quote",
-			targetNick: "al",
 			additionalText: undefined,
 			imageUrls: ["https://example.com/image.jpg"],
+			targetNick: "al",
+			type: "quote",
 		});
 	});
 
 	test("parses quote command with text and image url", () => {
 		const result = parseQuoteCommand("quote tim yep https://example.com/a.png");
 		expect(result).toEqual({
-			type: "quote",
-			targetNick: "tim",
 			additionalText: "yep",
 			imageUrls: ["https://example.com/a.png"],
+			targetNick: "tim",
+			type: "quote",
 		});
 	});
 
 	test("trims additional text", () => {
 		const result = parseQuoteCommand("quote al   extra text  ");
 		expect(result).toEqual({
-			type: "quote",
-			targetNick: "al",
 			additionalText: "extra text",
 			imageUrls: undefined,
+			targetNick: "al",
+			type: "quote",
 		});
 	});
 
 	test("is case insensitive", () => {
 		const result = parseQuoteCommand("QUOTE al");
 		expect(result).toEqual({
-			type: "quote",
-			targetNick: "al",
 			additionalText: undefined,
 			imageUrls: undefined,
+			targetNick: "al",
+			type: "quote",
 		});
 	});
 
@@ -140,9 +140,9 @@ describe("parseReplyCommand", () => {
 	test("parses reply command", () => {
 		const result = parseReplyCommand("reply this is a reply");
 		expect(result).toEqual({
-			type: "reply",
-			text: "this is a reply",
 			imageUrls: undefined,
+			text: "this is a reply",
+			type: "reply",
 		});
 	});
 
@@ -151,27 +151,27 @@ describe("parseReplyCommand", () => {
 			"reply check this https://example.com/pic.jpeg",
 		);
 		expect(result).toEqual({
-			type: "reply",
-			text: "check this",
 			imageUrls: ["https://example.com/pic.jpeg"],
+			text: "check this",
+			type: "reply",
 		});
 	});
 
 	test("trims text", () => {
 		const result = parseReplyCommand("reply   some text  ");
 		expect(result).toEqual({
-			type: "reply",
-			text: "some text",
 			imageUrls: undefined,
+			text: "some text",
+			type: "reply",
 		});
 	});
 
 	test("is case insensitive", () => {
 		const result = parseReplyCommand("REPLY hello");
 		expect(result).toEqual({
-			type: "reply",
-			text: "hello",
 			imageUrls: undefined,
+			text: "hello",
+			type: "reply",
 		});
 	});
 
@@ -185,27 +185,27 @@ describe("parseUntwitCommand", () => {
 	test("parses untwit command (non-force)", () => {
 		const result = parseUntwitCommand("untwit");
 		expect(result).toEqual({
-			type: "untwit",
 			force: false,
+			type: "untwit",
 		});
 	});
 
 	test("parses untwit! command (force)", () => {
 		const result = parseUntwitCommand("untwit!");
 		expect(result).toEqual({
-			type: "untwit",
 			force: true,
+			type: "untwit",
 		});
 	});
 
 	test("is case insensitive", () => {
 		expect(parseUntwitCommand("UNTWIT")).toEqual({
-			type: "untwit",
 			force: false,
+			type: "untwit",
 		});
 		expect(parseUntwitCommand("UNTWIT!")).toEqual({
-			type: "untwit",
 			force: true,
+			type: "untwit",
 		});
 	});
 

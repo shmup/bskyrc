@@ -1,22 +1,24 @@
 {
-	"name": "douglbutt",
-	"module": "index.ts",
-	"type": "module",
-	"private": true,
+	"dependencies": {
+		"@atproto/api": "^0.17.0",
+		"dotenv": "^17.2.3",
+		"irc-framework": "^4.14.0"
+	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.5",
 		"@types/bun": "latest",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.3"
 	},
-	"dependencies": {
-		"@atproto/api": "^0.17.0",
-		"dotenv": "^17.2.3",
-		"irc-framework": "^4.14.0"
+	"lint-staged": {
+		"*": "bun run format:staged"
 	},
+	"module": "index.ts",
+	"name": "douglbutt",
 	"peerDependencies": {
 		"typescript": "^5"
 	},
+	"private": true,
 	"scripts": {
 		"dev": "bun --watch index.ts",
 		"format": "bunx @biomejs/biome check --write --unsafe .",
@@ -25,7 +27,5 @@
 		"start": "bun run index.ts",
 		"test": "bun test"
 	},
-	"lint-staged": {
-		"*": "bun run format:staged"
-	}
+	"type": "module"
 }

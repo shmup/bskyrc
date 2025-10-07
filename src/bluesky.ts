@@ -38,15 +38,15 @@ export async function postToBluesky(
 		await rt.detectFacets(agent);
 
 		const postData: PostData = {
-			text: rt.text,
 			facets: rt.facets,
+			text: rt.text,
 		};
 
 		// add reply data if this is a reply
 		if (replyTo) {
 			postData.reply = {
-				root: replyTo,
 				parent: replyTo,
+				root: replyTo,
 			};
 		}
 
@@ -130,7 +130,7 @@ export async function parseBlueskyUrl(
 		const post = await agent.getPost({ repo: did, rkey: postId });
 		const cid = post.cid;
 
-		return { uri, cid };
+		return { cid, uri };
 	} catch (err) {
 		console.error("Failed to parse Bluesky URL:", err);
 		return null;

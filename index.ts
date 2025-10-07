@@ -49,12 +49,12 @@ let lastBskyUrl: string | null = null;
 // initialize irc client
 const client = new irc.Client();
 client.connect({
-	host: IRC_SERVER,
-	port: parseInt(process.env.IRC_PORT || "6667", 10),
-	nick: IRC_NICKNAME,
-	username: process.env.IRC_USERNAME || IRC_NICKNAME,
 	gecos: process.env.IRC_REALNAME || IRC_NICKNAME,
+	host: IRC_SERVER,
+	nick: IRC_NICKNAME,
+	port: parseInt(process.env.IRC_PORT || "6667", 10),
 	tls: process.env.IRC_USE_TLS === "true",
+	username: process.env.IRC_USERNAME || IRC_NICKNAME,
 });
 
 async function main() {

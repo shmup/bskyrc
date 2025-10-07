@@ -106,11 +106,11 @@ describe("end-to-end user scenarios", () => {
 			nick: string;
 			message: string;
 		}> = [
-			{ nick: "tim", message: "aargh aargh aargh" },
-			{ nick: "al", message: "afternoon tim" },
-			{ nick: "tim", message: "twit installing a turbo grinder" },
-			{ nick: "wilson", message: "quote tim neighborino!" },
-			{ nick: "al", message: "did you read the manual" },
+			{ message: "aargh aargh aargh", nick: "tim" },
+			{ message: "afternoon tim", nick: "al" },
+			{ message: "twit installing a turbo grinder", nick: "tim" },
+			{ message: "quote tim neighborino!", nick: "wilson" },
+			{ message: "did you read the manual", nick: "al" },
 		];
 
 		for (const { nick, message } of messages) {

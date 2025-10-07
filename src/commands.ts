@@ -59,9 +59,9 @@ export function parseTwitCommand(message: string): TwitCommand | null {
 	const { cleanText, imageUrls } = extractImageUrls(fullText);
 
 	return {
-		type: "twit",
-		text: cleanText,
 		imageUrls,
+		text: cleanText,
+		type: "twit",
 	};
 }
 
@@ -86,10 +86,10 @@ export function parseQuoteCommand(message: string): QuoteCommand | null {
 	}
 
 	return {
-		type: "quote",
-		targetNick,
 		additionalText: cleanAdditionalText,
 		imageUrls,
+		targetNick,
+		type: "quote",
 	};
 }
 
@@ -104,9 +104,9 @@ export function parseReplyCommand(message: string): ReplyCommand | null {
 	const { cleanText, imageUrls } = extractImageUrls(fullText);
 
 	return {
-		type: "reply",
-		text: cleanText,
 		imageUrls,
+		text: cleanText,
+		type: "reply",
 	};
 }
 
@@ -115,10 +115,10 @@ export function parseReplyCommand(message: string): ReplyCommand | null {
  */
 export function parseUntwitCommand(message: string): UntwitCommand | null {
 	if (message.match(/^untwit!$/i)) {
-		return { type: "untwit", force: true };
+		return { force: true, type: "untwit" };
 	}
 	if (message.match(/^untwit$/i)) {
-		return { type: "untwit", force: false };
+		return { force: false, type: "untwit" };
 	}
 	return null;
 }
