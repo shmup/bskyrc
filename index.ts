@@ -12,7 +12,9 @@ import { extractBlueskyUrl, parseCommand } from "./src/commands.js";
 import { BLUESKY_SERVICE_URL } from "./src/constants.js";
 
 // force local .env to override global environment variables
-dotenv.config({ override: true });
+// supports custom env file via ENV_FILE environment variable
+const envFile = process.env.ENV_FILE || ".env";
+dotenv.config({ override: true, path: envFile });
 
 // validate required environment variables
 const requiredEnvVars = [
