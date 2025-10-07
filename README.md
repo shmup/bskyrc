@@ -28,6 +28,7 @@ quote usernick
 quote usernick with extra text
 reply this is my reply
 untwit
+sup usernick # infers .bsky.social otherwise supply full handle
 ```
 
 ### features

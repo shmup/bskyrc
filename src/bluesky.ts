@@ -209,7 +209,7 @@ export async function getLastPost(
 		});
 
 		if (!feed.data.feed.length) {
-			return { success: false };
+			return { message: "crickets", success: true };
 		}
 
 		const feedItem = feed.data.feed[0];
