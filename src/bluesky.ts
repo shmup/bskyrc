@@ -263,15 +263,16 @@ export async function getLastPost(
 			url: postUrl,
 		};
 	} catch (err) {
-		// profile not found - return "who?"
+		// invalid handle or profile not found - return "who?"
 		if (
 			err &&
 			typeof err === "object" &&
 			"message" in err &&
 			typeof err.message === "string" &&
-			err.message.includes("Profile not found")
+			(err.message.includes("Profile not found") ||
+				err.message.includes("actor must be a valid did or a handle"))
 		) {
-			console.log(`Profile not found: ${handle}`);
+			console.log(`Invalid or unknown handle: ${handle}`);
 			return { message: "who?", success: true };
 		}
 		// other errors - log and return failure
