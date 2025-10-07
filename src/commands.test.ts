@@ -5,6 +5,7 @@ import {
 	parseCommand,
 	parseQuoteCommand,
 	parseReplyCommand,
+	parseSupCommand,
 	parseTwitCommand,
 	parseUntwitCommand,
 } from "./commands.js";
@@ -215,6 +216,49 @@ describe("parseUntwitCommand", () => {
 	});
 });
 
+describe("parseSupCommand", () => {
+	test("parses sup command with simple handle", () => {
+		const result = parseSupCommand("sup dril");
+		expect(result).toEqual({
+			handle: "dril",
+			type: "sup",
+		});
+	});
+
+	test("parses sup command with dotted handle", () => {
+		const result = parseSupCommand("sup smell.flowers");
+		expect(result).toEqual({
+			handle: "smell.flowers",
+			type: "sup",
+		});
+	});
+
+	test("parses sup command with full bsky.social handle", () => {
+		const result = parseSupCommand("sup dril.bsky.social");
+		expect(result).toEqual({
+			handle: "dril.bsky.social",
+			type: "sup",
+		});
+	});
+
+	test("is case insensitive", () => {
+		const result = parseSupCommand("SUP dril");
+		expect(result).toEqual({
+			handle: "dril",
+			type: "sup",
+		});
+	});
+
+	test("returns null for non-sup messages", () => {
+		expect(parseSupCommand("hello world")).toBeNull();
+		expect(parseSupCommand("twit hello")).toBeNull();
+	});
+
+	test("returns null for sup without handle", () => {
+		expect(parseSupCommand("sup")).toBeNull();
+	});
+});
+
 describe("extractBlueskyUrl", () => {
 	test("extracts bluesky url from message", () => {
 		const url = "https://bsky.app/profile/tim.bsky.social/post/3kowrg5ylci2r";
@@ -261,16 +305,22 @@ describe("parseCommand", () => {
 		expect(result?.type).toBe("untwit");
 	});
 
+	test("returns sup command when message is sup", () => {
+		const result = parseCommand("sup dril");
+		expect(result?.type).toBe("sup");
+	});
+
 	test("returns null when message is not a command", () => {
 		const result = parseCommand("just a regular message");
 		expect(result).toBeNull();
 	});
 
-	test("prioritizes commands in order: twit, quote, reply, untwit", () => {
+	test("prioritizes commands in order: twit, quote, reply, untwit, sup", () => {
 		// if a message could match multiple (unlikely but possible), it should return the first match
 		expect(parseCommand("twit hello")?.type).toBe("twit");
 		expect(parseCommand("quote al")?.type).toBe("quote");
 		expect(parseCommand("reply hello")?.type).toBe("reply");
 		expect(parseCommand("untwit")?.type).toBe("untwit");
+		expect(parseCommand("sup dril")?.type).toBe("sup");
 	});
 });

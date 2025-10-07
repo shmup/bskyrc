@@ -1,5 +1,5 @@
 format:
-    bun fmt
+    bun format
 
 lint:
     bun lint

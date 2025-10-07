@@ -179,3 +179,88 @@ export async function deletePost(
 		return false;
 	}
 }
+
+/**
+ * normalize a handle by adding .bsky.social if it doesn't contain a period
+ */
+function normalizeHandle(handle: string): string {
+	if (handle.includes(".")) {
+		return handle;
+	}
+	return `${handle}.bsky.social`;
+}
+
+export interface LastPostResult {
+	success: boolean;
+	message?: string;
+}
+
+export async function getLastPost(
+	agent: AtpAgent,
+	handle: string,
+): Promise<LastPostResult> {
+	try {
+		const normalizedHandle = normalizeHandle(handle);
+
+		// fetch the user's feed
+		const feed = await agent.getAuthorFeed({
+			actor: normalizedHandle,
+			limit: 1,
+		});
+
+		if (!feed.data.feed.length) {
+			return { success: false };
+		}
+
+		const feedItem = feed.data.feed[0];
+		const post = feedItem?.post;
+		if (!post) {
+			return { success: false };
+		}
+
+		// extract post text
+		let text = (post.record as { text?: string }).text || "";
+
+		// check for embeds
+		const embed = post.embed;
+		if (embed) {
+			// check for quote posts
+			if (embed.$type === "app.bsky.embed.record#view") {
+				text += `${text ? " " : ""}[+quote]`;
+			}
+			// check for images
+			else if (
+				embed.$type === "app.bsky.embed.images#view" &&
+				embed.images &&
+				Array.isArray(embed.images)
+			) {
+				const imgCount = embed.images.length;
+				if (imgCount === 1) {
+					text += `${text ? " " : ""}[image]`;
+				} else {
+					text += `${text ? " " : ""}[+${imgCount} images]`;
+				}
+			}
+			// check for external links
+			else if (
+				embed.$type === "app.bsky.embed.external#view" &&
+				embed.external &&
+				(embed.external as { uri?: string }).uri
+			) {
+				const linkUrl = (embed.external as { uri: string }).uri;
+				text += (text ? " " : "") + linkUrl;
+			}
+		}
+
+		const authorHandle = post.author.handle;
+		const message = `bsky/@${authorHandle}: ${text}`;
+
+		return {
+			message,
+			success: true,
+		};
+	} catch (err) {
+		console.error("Failed to get last post:", err);
+		return { success: false };
+	}
+}

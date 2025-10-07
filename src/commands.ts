@@ -23,11 +23,17 @@ export type UntwitCommand = {
 	force: boolean;
 };
 
+export type SupCommand = {
+	type: "sup";
+	handle: string;
+};
+
 export type Command =
 	| TwitCommand
 	| QuoteCommand
 	| ReplyCommand
 	| UntwitCommand
+	| SupCommand
 	| null;
 
 /**
@@ -124,6 +130,21 @@ export function parseUntwitCommand(message: string): UntwitCommand | null {
 }
 
 /**
+ * parse a message to see if it matches the sup command pattern
+ */
+export function parseSupCommand(message: string): SupCommand | null {
+	const match = message.match(/^sup\s+(\S+)$/i);
+	if (!match) return null;
+
+	const handle = match[1] as string;
+
+	return {
+		handle,
+		type: "sup",
+	};
+}
+
+/**
  * extract bluesky url from a message if present
  */
 export function extractBlueskyUrl(message: string): string | null {
@@ -141,6 +162,7 @@ export function parseCommand(message: string): Command {
 		parseTwitCommand(message) ||
 		parseQuoteCommand(message) ||
 		parseReplyCommand(message) ||
-		parseUntwitCommand(message)
+		parseUntwitCommand(message) ||
+		parseSupCommand(message)
 	);
 }

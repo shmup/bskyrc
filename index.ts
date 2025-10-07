@@ -2,7 +2,12 @@
 import { AtpAgent } from "@atproto/api";
 import dotenv from "dotenv";
 import * as irc from "irc-framework";
-import { deletePost, parseBlueskyUrl, postToBluesky } from "./src/bluesky.js";
+import {
+	deletePost,
+	getLastPost,
+	parseBlueskyUrl,
+	postToBluesky,
+} from "./src/bluesky.js";
 import { extractBlueskyUrl, parseCommand } from "./src/commands.js";
 import { BLUESKY_SERVICE_URL } from "./src/constants.js";
 
@@ -164,6 +169,16 @@ async function main() {
 				lastPostTimestamp = null;
 			}
 			client.say(target, success ? "ok" : "no");
+			return;
+		}
+
+		if (command?.type === "sup") {
+			const result = await getLastPost(agent, command.handle);
+			if (result.success && result.message) {
+				client.say(target, result.message);
+			} else {
+				client.say(target, "no");
+			}
 			return;
 		}
 
