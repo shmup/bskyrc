@@ -152,10 +152,11 @@ export async function deletePost(
 	uri: string | null,
 	timestamp: number | null,
 	forceDelete: boolean,
-): Promise<boolean> {
+): Promise<{ success: boolean; text?: string }> {
 	try {
 		let postUri = uri;
 		let postTimestamp = timestamp;
+		let postText: string | undefined;
 
 		// if we don't have a cached post, fetch the most recent one
 		if (!postUri) {
@@ -165,28 +166,41 @@ export async function deletePost(
 			});
 
 			if (!feed.data.feed.length) {
-				return false;
+				return { success: false };
 			}
 
 			const post = (feed.data.feed[0] as (typeof feed.data.feed)[0]).post;
 			postUri = post.uri;
 			// extract timestamp from post indexedAt
 			postTimestamp = new Date(post.indexedAt).getTime();
+			// extract text from post record
+			postText = (post.record as { text?: string })?.text;
+		} else {
+			// fetch the post to get its text
+			try {
+				const postData = await agent.getPost({
+					repo: agent.session?.did || "",
+					rkey: postUri.split("/").pop() || "",
+				});
+				postText = (postData.value as { text?: string })?.text;
+			} catch (err) {
+				console.error("Failed to fetch post text:", err);
+			}
 		}
 
 		// check if post is within 1 hour unless force delete
 		if (!forceDelete && postTimestamp) {
 			if (Date.now() - postTimestamp > ONE_HOUR_MS) {
-				return false;
+				return { success: false };
 			}
 		}
 
 		await agent.deletePost(postUri);
 		console.log("Deleted post:", postUri);
-		return true;
+		return { success: true, text: postText };
 	} catch (err) {
 		console.error("Failed to delete post:", err);
-		return false;
+		return { success: false };
 	}
 }
 

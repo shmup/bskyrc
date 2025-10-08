@@ -202,17 +202,22 @@ async function main() {
 		}
 
 		if (command?.type === "untwit") {
-			const success = await blueskyHandlers.deletePost(
+			const result = await blueskyHandlers.deletePost(
 				agent,
 				lastPostUri,
 				lastPostTimestamp,
 				command.force,
 			);
-			if (success) {
+			if (result.success) {
 				lastPostUri = null;
 				lastPostTimestamp = null;
+				const preview = result.text
+					? `deleted ${result.text.slice(0, 20)}...`
+					: "deleted";
+				client.say(target, preview);
+			} else {
+				client.say(target, "no");
 			}
-			client.say(target, success ? "ok" : "no");
 			return;
 		}
 
