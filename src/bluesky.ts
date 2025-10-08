@@ -5,6 +5,7 @@ import {
 	type AtpAgent,
 	RichText,
 } from "@atproto/api";
+import sharp from "sharp";
 
 import { BLUESKY_APP_URL, ONE_HOUR_MS } from "./constants.js";
 
@@ -62,11 +63,20 @@ export async function postToBluesky(
 					const response = await fetch(imageUrl);
 					const imageBuffer = await response.arrayBuffer();
 
+					// resize image to stay under size limits (max 2000px on longest side)
+					const resizedBuffer = await sharp(Buffer.from(imageBuffer))
+						.resize(2000, 2000, {
+							fit: "inside",
+							withoutEnlargement: true,
+						})
+						.jpeg({ quality: 90 })
+						.toBuffer();
+
 					// upload to bluesky
 					const uploadResponse = await agent.uploadBlob(
-						new Uint8Array(imageBuffer),
+						new Uint8Array(resizedBuffer),
 						{
-							encoding: response.headers.get("content-type") || "image/jpeg",
+							encoding: "image/jpeg",
 						},
 					);
 
