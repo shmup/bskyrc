@@ -282,6 +282,15 @@ describe("extractBlueskyUrl", () => {
 		const result = extractBlueskyUrl(message);
 		expect(result).toBe("https://bsky.app/profile/al.bsky.social/post/abc123");
 	});
+
+	test("extracts url with parentheses in message", () => {
+		const message =
+			"(non derogatory) https://bsky.app/profile/mrpussy.xyz/post/3m2n7pwku7k2s";
+		const result = extractBlueskyUrl(message);
+		expect(result).toBe(
+			"https://bsky.app/profile/mrpussy.xyz/post/3m2n7pwku7k2s",
+		);
+	});
 });
 
 describe("parseCommand", () => {

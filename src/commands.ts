@@ -149,7 +149,7 @@ export function parseSupCommand(message: string): SupCommand | null {
  */
 export function extractBlueskyUrl(message: string): string | null {
 	const match = message.match(
-		/https?:\/\/bsky\.app\/profile\/[^/]+\/post\/[^/\s]+/i,
+		/https?:\/\/bsky\.app\/profile\/[^/\s]+\/post\/[a-z0-9]+/i,
 	);
 	return match ? match[0] : null;
 }
