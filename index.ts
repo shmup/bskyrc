@@ -233,10 +233,15 @@ async function main() {
 			return;
 		}
 
-		// track bluesky urls in messages
+		// track bluesky urls in messages and auto-display post content
 		const bskyUrl = commandHandlers.extractBlueskyUrl(message);
 		if (bskyUrl) {
 			lastBskyUrl = bskyUrl;
+			// fetch and display the post content
+			const result = await blueskyHandlers.getPostFromUrl(agent, bskyUrl);
+			if (result.success && result.message) {
+				client.say(target, result.message);
+			}
 		}
 
 		// store non-command messages in history

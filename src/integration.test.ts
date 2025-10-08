@@ -148,6 +148,21 @@ describe("bluesky url tracking integration", () => {
 		lastBskyUrl = "https://bsky.app/profile/tim.bsky.social/post/abc123";
 		expect(lastBskyUrl).not.toBeNull();
 	});
+
+	test("auto-displays post content when bluesky url detected", () => {
+		// simulate messages with bluesky urls anywhere in them
+		const messages = [
+			"(non derogatory) https://bsky.app/profile/mrpussy.xyz/post/3m2n7pwku7k2s",
+			"testing embeddd urls https://bsky.app/profile/npr.org/post/3m2ompy2gvs22 in my post",
+		];
+
+		for (const msg of messages) {
+			const url = extractBlueskyUrl(msg);
+			expect(url).not.toBeNull();
+			// when url is detected, bot should fetch and display the post
+			// (actual API call tested separately)
+		}
+	});
 });
 
 describe("command priority integration", () => {

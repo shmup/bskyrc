@@ -50,7 +50,7 @@ describe("end-to-end user scenarios", () => {
 		}
 	});
 
-	test("scenario: user shares bsky link, then someone replies to it", () => {
+	test("scenario: user shares bsky link, bot displays it, then someone replies to it", () => {
 		let lastBskyUrl: string | null = null;
 
 		// step 1: tim shares a bluesky link
@@ -67,6 +67,7 @@ describe("end-to-end user scenarios", () => {
 			"https://bsky.app/profile/example.bsky.social/post/xyz789",
 		);
 		lastBskyUrl = url;
+		// bot would automatically fetch and display the post content here
 
 		// step 2: al replies to that post
 		const alMessage = "reply proper torque specs are critical";

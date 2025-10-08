@@ -291,6 +291,13 @@ describe("extractBlueskyUrl", () => {
 			"https://bsky.app/profile/mrpussy.xyz/post/3m2n7pwku7k2s",
 		);
 	});
+
+	test("extracts url with text before and after", () => {
+		const message =
+			"testing embeddd urls https://bsky.app/profile/npr.org/post/3m2ompy2gvs22 in my post";
+		const result = extractBlueskyUrl(message);
+		expect(result).toBe("https://bsky.app/profile/npr.org/post/3m2ompy2gvs22");
+	});
 });
 
 describe("parseCommand", () => {

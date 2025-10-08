@@ -196,6 +196,58 @@ export interface LastPostResult {
 	url?: string;
 }
 
+// formats a post object into a display message
+function formatPostMessage(post: {
+	record: unknown;
+	embed?: unknown;
+	author: { handle: string };
+}): string {
+	// extract post text
+	let text = (post.record as { text?: string }).text || "";
+
+	// check for embeds
+	const embed = post.embed;
+	if (embed) {
+		// check for quote posts
+		if ((embed as { $type?: string }).$type === "app.bsky.embed.record#view") {
+			text += `${text ? " " : ""}[+quote]`;
+		}
+		// check for images
+		else if (
+			(embed as { $type?: string }).$type === "app.bsky.embed.images#view" &&
+			(embed as { images?: unknown[] }).images &&
+			Array.isArray((embed as { images: unknown[] }).images)
+		) {
+			const imgCount = (embed as { images: unknown[] }).images.length;
+			if (imgCount === 1) {
+				text += `${text ? " " : ""}[image]`;
+			} else {
+				text += `${text ? " " : ""}[+${imgCount} images]`;
+			}
+		}
+		// check for external links
+		else if (
+			(embed as { $type?: string }).$type === "app.bsky.embed.external#view" &&
+			(embed as { external?: unknown }).external &&
+			(
+				(embed as { external: unknown }).external as {
+					uri?: string;
+				}
+			).uri
+		) {
+			const linkUrl = (
+				(embed as { external: unknown }).external as {
+					uri: string;
+				}
+			).uri;
+			text += (text ? " " : "") + linkUrl;
+		}
+	}
+
+	const authorHandle = post.author.handle;
+	return `bsky/@${authorHandle}: ${text}`;
+}
+
 export async function getLastPost(
 	agent: AtpAgent,
 	handle: string,
@@ -219,43 +271,8 @@ export async function getLastPost(
 			return { success: false };
 		}
 
-		// extract post text
-		let text = (post.record as { text?: string }).text || "";
-
-		// check for embeds
-		const embed = post.embed;
-		if (embed) {
-			// check for quote posts
-			if (embed.$type === "app.bsky.embed.record#view") {
-				text += `${text ? " " : ""}[+quote]`;
-			}
-			// check for images
-			else if (
-				embed.$type === "app.bsky.embed.images#view" &&
-				embed.images &&
-				Array.isArray(embed.images)
-			) {
-				const imgCount = embed.images.length;
-				if (imgCount === 1) {
-					text += `${text ? " " : ""}[image]`;
-				} else {
-					text += `${text ? " " : ""}[+${imgCount} images]`;
-				}
-			}
-			// check for external links
-			else if (
-				embed.$type === "app.bsky.embed.external#view" &&
-				embed.external &&
-				(embed.external as { uri?: string }).uri
-			) {
-				const linkUrl = (embed.external as { uri: string }).uri;
-				text += (text ? " " : "") + linkUrl;
-			}
-		}
-
-		const authorHandle = post.author.handle;
-		const message = `bsky/@${authorHandle}: ${text}`;
-		const postUrl = `${BLUESKY_APP_URL}/profile/${authorHandle}/post/${post.uri.split("/").pop()}`;
+		const message = formatPostMessage(post);
+		const postUrl = `${BLUESKY_APP_URL}/profile/${post.author.handle}/post/${post.uri.split("/").pop()}`;
 
 		return {
 			message,
@@ -277,6 +294,42 @@ export async function getLastPost(
 		}
 		// other errors - log and return failure
 		console.error("Failed to get last post:", err);
+		return { success: false };
+	}
+}
+
+// fetches and formats a post given its bluesky url
+export async function getPostFromUrl(
+	agent: AtpAgent,
+	url: string,
+): Promise<LastPostResult> {
+	try {
+		// parse the url to get uri
+		const replyData = await parseBlueskyUrl(agent, url);
+		if (!replyData) {
+			return { success: false };
+		}
+
+		// fetch the post thread to get the post data
+		const thread = await agent.getPostThread({ uri: replyData.uri });
+		if (
+			!thread.data.thread ||
+			thread.data.thread.$type !== "app.bsky.feed.defs#threadViewPost"
+		) {
+			return { success: false };
+		}
+
+		const post = thread.data.thread.post;
+
+		const message = formatPostMessage(post);
+
+		return {
+			message,
+			success: true,
+			url,
+		};
+	} catch (err) {
+		console.error("Failed to get post from URL:", err);
 		return { success: false };
 	}
 }
