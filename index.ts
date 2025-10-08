@@ -5,7 +5,7 @@ import { AtpAgent } from "@atproto/api";
 import dotenv from "dotenv";
 import * as irc from "irc-framework";
 import type { Command } from "./src/commands.js";
-import { BLUESKY_SERVICE_URL } from "./src/constants.js";
+import { BLUESKY_APP_URL, BLUESKY_SERVICE_URL } from "./src/constants.js";
 
 // force local .env to override global environment variables
 // supports custom env file via ENV_FILE environment variable
@@ -99,6 +99,72 @@ client.connect({
 	username: process.env.IRC_USERNAME || IRC_NICKNAME,
 });
 
+// track last seen notification timestamp for polling
+let lastSeenNotificationTime: string | undefined;
+
+// poll for new notifications and post to irc channel
+async function pollNotifications(
+	agent: AtpAgent,
+	ircClient: irc.Client,
+	channel: string,
+) {
+	try {
+		const result = await agent.listNotifications({ limit: 50 });
+
+		// on first poll, just set the timestamp and don't post anything
+		if (!lastSeenNotificationTime) {
+			const mentionsAndReplies = result.data.notifications.filter(
+				(n) => n.reason === "mention" || n.reason === "reply",
+			);
+			if (mentionsAndReplies.length > 0) {
+				lastSeenNotificationTime = mentionsAndReplies[0].indexedAt;
+			}
+			return;
+		}
+
+		// process notifications in reverse order (oldest first)
+		const notifications = [...result.data.notifications].reverse();
+
+		for (const notif of notifications) {
+			// only show mentions and replies
+			if (notif.reason !== "mention" && notif.reason !== "reply") {
+				continue;
+			}
+
+			// skip if we've already seen this notification
+			if (notif.indexedAt <= lastSeenNotificationTime) {
+				continue;
+			}
+
+			const post = notif.record as { text?: string };
+			const postText = post.text || "";
+			const authorHandle = notif.author.handle;
+			const postUrl = `${BLUESKY_APP_URL}/profile/${authorHandle}/post/${notif.uri.split("/").pop()}`;
+
+			// format message for irc
+			const message =
+				notif.reason === "mention"
+					? `bsky/@${authorHandle}: ${postText} ${postUrl}`
+					: `bsky/@${authorHandle} replies: ${postText} ${postUrl}`;
+
+			ircClient.say(channel, message);
+
+			// update lastBskyUrl so reply command will work
+			lastBskyUrl = postUrl;
+
+			// update last seen time
+			lastSeenNotificationTime = notif.indexedAt;
+		}
+
+		// mark notifications as seen
+		if (notifications.length > 0) {
+			await agent.updateSeenNotifications();
+		}
+	} catch (err) {
+		console.error("Failed to poll notifications:", err);
+	}
+}
+
 async function main() {
 	// login to bluesky
 	console.log(`Attempting login with username: ${BLUESKY_USERNAME}`);
@@ -125,6 +191,14 @@ async function main() {
 	client.on("join", (event: irc.JoinEvent) => {
 		if (event.nick === client.user.nick) {
 			console.log(`Joined ${event.channel}`);
+
+			// start polling for notifications every 10 seconds
+			setInterval(() => {
+				pollNotifications(agent, client, IRC_CHANNEL);
+			}, 10000);
+
+			// do an initial poll immediately
+			pollNotifications(agent, client, IRC_CHANNEL);
 		}
 	});
 
