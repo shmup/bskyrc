@@ -7,7 +7,7 @@ import {
 } from "./commands.js";
 
 describe("message history integration", () => {
-	test("stores messages in history for later quoting", () => {
+	test("stores messages in history for later quoting", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// simulate receiving messages from different users
@@ -15,7 +15,7 @@ describe("message history integration", () => {
 		messageHistory.set("al", "i don't think so tim");
 
 		// simulate quote command
-		const quoteCmd = parseQuoteCommand("quote tim");
+		const quoteCmd = await parseQuoteCommand("quote tim");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
@@ -24,14 +24,14 @@ describe("message history integration", () => {
 		}
 	});
 
-	test("quote command is case insensitive for nick lookup", () => {
+	test("quote command is case insensitive for nick lookup", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// store with lowercase (as the bot does)
 		messageHistory.set("tim", "let's soup it up");
 
 		// quote with different case
-		const quoteCmd = parseQuoteCommand("quote TIM");
+		const quoteCmd = await parseQuoteCommand("quote TIM");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
@@ -42,11 +42,11 @@ describe("message history integration", () => {
 		}
 	});
 
-	test("twit command text gets stored in history, not the command itself", () => {
+	test("twit command text gets stored in history, not the command itself", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// simulate twit command from tim
-		const twitCmd = parseCommand("twit grunts intensify");
+		const twitCmd = await parseCommand("twit grunts intensify");
 		if (twitCmd?.type === "twit") {
 			// bot stores the text being posted, not the command
 			messageHistory.set("tim", twitCmd.text);
@@ -55,11 +55,11 @@ describe("message history integration", () => {
 		expect(messageHistory.get("tim")).toBe("grunts intensify");
 	});
 
-	test("non-command messages get stored as-is", () => {
+	test("non-command messages get stored as-is", async () => {
 		const messageHistory = new Map<string, string>();
 
 		const message = "flannel looks good today";
-		const cmd = parseCommand(message);
+		const cmd = await parseCommand(message);
 
 		// not a command, so store as regular message
 		if (!cmd) {
@@ -69,11 +69,11 @@ describe("message history integration", () => {
 		expect(messageHistory.get("al")).toBe(message);
 	});
 
-	test("failed quote falls through to message storage", () => {
+	test("failed quote falls through to message storage", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// quote command for non-existent user should fail
-		const quoteCmd = parseQuoteCommand("quote wilson");
+		const quoteCmd = await parseQuoteCommand("quote wilson");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {
@@ -91,7 +91,7 @@ describe("message history integration", () => {
 });
 
 describe("bluesky url tracking integration", () => {
-	test("tracks last bluesky url from messages", () => {
+	test("tracks last bluesky url from messages", async () => {
 		let lastBskyUrl: string | null = null;
 
 		// simulate messages
@@ -113,7 +113,7 @@ describe("bluesky url tracking integration", () => {
 		);
 	});
 
-	test("updates last url when new one appears", () => {
+	test("updates last url when new one appears", async () => {
 		let lastBskyUrl: string | null = null;
 
 		const messages = [
@@ -135,10 +135,10 @@ describe("bluesky url tracking integration", () => {
 		);
 	});
 
-	test("reply command requires a tracked url", () => {
+	test("reply command requires a tracked url", async () => {
 		let lastBskyUrl: string | null = null;
 
-		const replyCmd = parseCommand("reply this is my reply");
+		const replyCmd = await parseCommand("reply this is my reply");
 		expect(replyCmd?.type).toBe("reply");
 
 		// without a tracked url, reply should fail
@@ -149,7 +149,7 @@ describe("bluesky url tracking integration", () => {
 		expect(lastBskyUrl).not.toBeNull();
 	});
 
-	test("auto-displays post content when bluesky url detected", () => {
+	test("auto-displays post content when bluesky url detected", async () => {
 		// simulate messages with bluesky urls anywhere in them
 		const messages = [
 			"(non derogatory) https://bsky.app/profile/mrpussy.xyz/post/3m2n7pwku7k2s",
@@ -166,14 +166,14 @@ describe("bluesky url tracking integration", () => {
 });
 
 describe("command priority integration", () => {
-	test("commands are processed in specific order", () => {
+	test("commands are processed in specific order", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// simulate a message that doesn't match any command pattern
 		const message = "just chatting about tools";
 
 		// parseCommand will try twit first, then quote, then reply, then untwit
-		const cmd = parseCommand(message);
+		const cmd = await parseCommand(message);
 
 		// since message doesn't match any command pattern, it should be null
 		expect(cmd).toBeNull();
@@ -183,11 +183,11 @@ describe("command priority integration", () => {
 		expect(messageHistory.get("tim")).toBe(message);
 	});
 
-	test("valid command prevents message from being stored as regular message", () => {
+	test("valid command prevents message from being stored as regular message", async () => {
 		const messageHistory = new Map<string, string>();
 
 		const message = "twit binford tools rock";
-		const cmd = parseCommand(message);
+		const cmd = await parseCommand(message);
 
 		if (cmd?.type === "twit") {
 			// store the text being posted, not the command
@@ -203,11 +203,11 @@ describe("command priority integration", () => {
 });
 
 describe("quote with additional text integration", () => {
-	test("combines quoted message with additional text", () => {
+	test("combines quoted message with additional text", async () => {
 		const messageHistory = new Map<string, string>();
 		messageHistory.set("al", "proper safety equipment is important");
 
-		const quoteCmd = parseQuoteCommand("quote al exactly right");
+		const quoteCmd = await parseQuoteCommand("quote al exactly right");
 		expect(quoteCmd).not.toBeNull();
 
 		if (quoteCmd) {

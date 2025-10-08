@@ -3,13 +3,13 @@ import { describe, expect, test } from "bun:test";
 import { extractBlueskyUrl, parseCommand } from "./commands.js";
 
 describe("end-to-end user scenarios", () => {
-	test("scenario: user posts a twit, then quotes it, then another user untwits", () => {
+	test("scenario: user posts a twit, then quotes it, then another user untwits", async () => {
 		const messageHistory = new Map<string, string>();
 		let lastPostUri: string | null = null;
 
 		// step 1: tim posts a twit
 		const timMessage = "twit fired up the turbo drill";
-		const timCmd = parseCommand(timMessage);
+		const timCmd = await parseCommand(timMessage);
 
 		expect(timCmd?.type).toBe("twit");
 		if (timCmd?.type === "twit") {
@@ -21,7 +21,7 @@ describe("end-to-end user scenarios", () => {
 
 		// step 2: al quotes tim's last message
 		const alMessage = "quote tim remember to wear safety goggles";
-		const alCmd = parseCommand(alMessage);
+		const alCmd = await parseCommand(alMessage);
 
 		expect(alCmd?.type).toBe("quote");
 		if (alCmd?.type === "quote") {
@@ -40,7 +40,7 @@ describe("end-to-end user scenarios", () => {
 
 		// step 3: tim realizes he made a mistake and untwits
 		const untwitMessage = "untwit";
-		const untwitCmd = parseCommand(untwitMessage);
+		const untwitCmd = await parseCommand(untwitMessage);
 
 		expect(untwitCmd?.type).toBe("untwit");
 		if (untwitCmd?.type === "untwit") {
@@ -50,13 +50,13 @@ describe("end-to-end user scenarios", () => {
 		}
 	});
 
-	test("scenario: user shares bsky link, bot displays it, then someone replies to it", () => {
+	test("scenario: user shares bsky link, bot displays it, then someone replies to it", async () => {
 		let lastBskyUrl: string | null = null;
 
 		// step 1: tim shares a bluesky link
 		const timMessage =
 			"look at these power tools https://bsky.app/profile/example.bsky.social/post/xyz789";
-		const cmd = parseCommand(timMessage);
+		const cmd = await parseCommand(timMessage);
 
 		// not a command, just a regular message with a url
 		expect(cmd).toBeNull();
@@ -71,7 +71,7 @@ describe("end-to-end user scenarios", () => {
 
 		// step 2: al replies to that post
 		const alMessage = "reply proper torque specs are critical";
-		const alCmd = parseCommand(alMessage);
+		const alCmd = await parseCommand(alMessage);
 
 		expect(alCmd?.type).toBe("reply");
 		if (alCmd?.type === "reply") {
@@ -81,12 +81,12 @@ describe("end-to-end user scenarios", () => {
 		}
 	});
 
-	test("scenario: quote fails because user has no message history", () => {
+	test("scenario: quote fails because user has no message history", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// tim has never spoken
 		const alMessage = "quote tim";
-		const alCmd = parseCommand(alMessage);
+		const alCmd = await parseCommand(alMessage);
 
 		expect(alCmd?.type).toBe("quote");
 		if (alCmd?.type === "quote") {
@@ -99,7 +99,7 @@ describe("end-to-end user scenarios", () => {
 		expect(messageHistory.get("al")).toBe("quote tim");
 	});
 
-	test("scenario: multiple users chatting and using commands", () => {
+	test("scenario: multiple users chatting and using commands", async () => {
 		const messageHistory = new Map<string, string>();
 
 		// conversation flow
@@ -115,7 +115,7 @@ describe("end-to-end user scenarios", () => {
 		];
 
 		for (const { nick, message } of messages) {
-			const cmd = parseCommand(message);
+			const cmd = await parseCommand(message);
 
 			if (cmd?.type === "twit") {
 				messageHistory.set(nick, cmd.text);
@@ -140,11 +140,11 @@ describe("end-to-end user scenarios", () => {
 		expect(messageHistory.get("wilson")).toBeUndefined(); // wilson only used quote command
 	});
 
-	test("scenario: twit with image url", () => {
+	test("scenario: twit with image url", async () => {
 		const messageHistory = new Map<string, string>();
 
 		const message = "twit check out this hot rod https://example.com/img.png";
-		const cmd = parseCommand(message);
+		const cmd = await parseCommand(message);
 
 		expect(cmd?.type).toBe("twit");
 		if (cmd?.type === "twit") {
@@ -158,12 +158,12 @@ describe("end-to-end user scenarios", () => {
 		expect(messageHistory.get("tim")).toBe("check out this hot rod");
 	});
 
-	test("scenario: force untwit with ! for posts older than 1 hour", () => {
+	test("scenario: force untwit with ! for posts older than 1 hour", async () => {
 		let lastPostUri: string | null = "at://did:plc:tim/app.bsky.feed.post/old";
 		let lastPostTimestamp: number | null = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
 
 		// regular untwit would fail (>1 hour)
-		const untwitCmd = parseCommand("untwit");
+		const untwitCmd = await parseCommand("untwit");
 		expect(untwitCmd?.type).toBe("untwit");
 		if (untwitCmd?.type === "untwit") {
 			expect(untwitCmd.force).toBe(false);
@@ -171,7 +171,7 @@ describe("end-to-end user scenarios", () => {
 		}
 
 		// force untwit works regardless of time
-		const forceUntwitCmd = parseCommand("untwit!");
+		const forceUntwitCmd = await parseCommand("untwit!");
 		expect(forceUntwitCmd?.type).toBe("untwit");
 		if (forceUntwitCmd?.type === "untwit") {
 			expect(forceUntwitCmd.force).toBe(true);
@@ -184,11 +184,11 @@ describe("end-to-end user scenarios", () => {
 		expect(lastPostTimestamp).toBeNull();
 	});
 
-	test("scenario: reply without tracked url fails", () => {
+	test("scenario: reply without tracked url fails", async () => {
 		const lastBskyUrl: string | null = null;
 
 		const replyMessage = "reply this is my reply";
-		const replyCmd = parseCommand(replyMessage);
+		const replyCmd = await parseCommand(replyMessage);
 
 		expect(replyCmd?.type).toBe("reply");
 		if (replyCmd?.type === "reply") {
@@ -198,7 +198,7 @@ describe("end-to-end user scenarios", () => {
 		}
 	});
 
-	test("scenario: url tracking updates with newest url", () => {
+	test("scenario: url tracking updates with newest url", async () => {
 		let lastBskyUrl: string | null = null;
 
 		const messages = [

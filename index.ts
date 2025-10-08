@@ -41,7 +41,7 @@ const agent = new AtpAgent({
 
 // hot-reloadable command handlers
 let commandHandlers: {
-	parseCommand: (message: string) => Command;
+	parseCommand: (message: string) => Promise<Command>;
 	extractBlueskyUrl: (message: string) => string | null;
 } = await import("./src/commands.js");
 
@@ -138,7 +138,7 @@ async function main() {
 		if (target !== IRC_CHANNEL) return;
 
 		// try to parse as a command
-		const command = commandHandlers.parseCommand(message);
+		const command = await commandHandlers.parseCommand(message);
 
 		if (command?.type === "twit") {
 			// store the text being posted (not the command) in history

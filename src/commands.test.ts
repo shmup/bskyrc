@@ -1,5 +1,5 @@
 // unit tests for command parsing logic
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import {
 	extractBlueskyUrl,
 	parseCommand,
@@ -11,8 +11,8 @@ import {
 } from "./commands.js";
 
 describe("parseTwitCommand", () => {
-	test("parses simple twit command", () => {
-		const result = parseTwitCommand("twit hello world");
+	test("parses simple twit command", async () => {
+		const result = await parseTwitCommand("twit hello world");
 		expect(result).toEqual({
 			imageUrls: undefined,
 			text: "hello world",
@@ -20,8 +20,8 @@ describe("parseTwitCommand", () => {
 		});
 	});
 
-	test("parses twit command with image url", () => {
-		const result = parseTwitCommand(
+	test("parses twit command with image url", async () => {
+		const result = await parseTwitCommand(
 			"twit check this out https://example.com/image.jpg",
 		);
 		expect(result).toEqual({
@@ -31,8 +31,8 @@ describe("parseTwitCommand", () => {
 		});
 	});
 
-	test("parses twit command with multiple image urls", () => {
-		const result = parseTwitCommand(
+	test("parses twit command with multiple image urls", async () => {
+		const result = await parseTwitCommand(
 			"twit check these https://example.com/a.jpg https://example.com/b.png",
 		);
 		expect(result).toEqual({
@@ -42,8 +42,8 @@ describe("parseTwitCommand", () => {
 		});
 	});
 
-	test("supports query strings in image urls", () => {
-		const result = parseTwitCommand(
+	test("supports query strings in image urls", async () => {
+		const result = await parseTwitCommand(
 			"twit photo https://example.com/img.jpg?size=large",
 		);
 		expect(result).toEqual({
@@ -53,8 +53,8 @@ describe("parseTwitCommand", () => {
 		});
 	});
 
-	test("is case insensitive", () => {
-		const result = parseTwitCommand("TWIT hello");
+	test("is case insensitive", async () => {
+		const result = await parseTwitCommand("TWIT hello");
 		expect(result).toEqual({
 			imageUrls: undefined,
 			text: "hello",
@@ -62,16 +62,71 @@ describe("parseTwitCommand", () => {
 		});
 	});
 
-	test("returns null for non-twit messages", () => {
-		expect(parseTwitCommand("hello world")).toBeNull();
-		expect(parseTwitCommand("quote al")).toBeNull();
-		expect(parseTwitCommand("twit")).toBeNull(); // no text
+	test("returns null for non-twit messages", async () => {
+		expect(await parseTwitCommand("hello world")).toBeNull();
+		expect(await parseTwitCommand("quote al")).toBeNull();
+		expect(await parseTwitCommand("twit")).toBeNull(); // no text
+	});
+
+	test("detects images by MIME type for URLs without file extensions", async () => {
+		// mock fetch to return image content-type for cdn urls
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = mock((url: string, options?: RequestInit) => {
+			if (
+				url === "https://cdn.bsky.app/img/feed_fullsize/plain/example" &&
+				options?.method === "HEAD"
+			) {
+				return Promise.resolve({
+					headers: new Headers({ "content-type": "image/jpeg" }),
+				} as Response);
+			}
+			return originalFetch(url, options);
+		});
+
+		try {
+			const result = await parseTwitCommand(
+				"twit check this https://cdn.bsky.app/img/feed_fullsize/plain/example",
+			);
+			expect(result).toEqual({
+				imageUrls: ["https://cdn.bsky.app/img/feed_fullsize/plain/example"],
+				text: "check this",
+				type: "twit",
+			});
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	test("ignores non-image URLs without file extensions", async () => {
+		// mock fetch to return non-image content-type
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = mock((url: string, options?: RequestInit) => {
+			if (url === "https://example.com/page" && options?.method === "HEAD") {
+				return Promise.resolve({
+					headers: new Headers({ "content-type": "text/html" }),
+				} as Response);
+			}
+			return originalFetch(url, options);
+		});
+
+		try {
+			const result = await parseTwitCommand(
+				"twit check this https://example.com/page",
+			);
+			expect(result).toEqual({
+				imageUrls: undefined,
+				text: "check this https://example.com/page",
+				type: "twit",
+			});
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 });
 
 describe("parseQuoteCommand", () => {
-	test("parses simple quote command", () => {
-		const result = parseQuoteCommand("quote al");
+	test("parses simple quote command", async () => {
+		const result = await parseQuoteCommand("quote al");
 		expect(result).toEqual({
 			additionalText: undefined,
 			imageUrls: undefined,
@@ -80,8 +135,8 @@ describe("parseQuoteCommand", () => {
 		});
 	});
 
-	test("parses quote command with additional text", () => {
-		const result = parseQuoteCommand("quote tim aargh aargh");
+	test("parses quote command with additional text", async () => {
+		const result = await parseQuoteCommand("quote tim aargh aargh");
 		expect(result).toEqual({
 			additionalText: "aargh aargh",
 			imageUrls: undefined,
@@ -90,8 +145,10 @@ describe("parseQuoteCommand", () => {
 		});
 	});
 
-	test("parses quote command with image url", () => {
-		const result = parseQuoteCommand("quote al https://example.com/image.jpg");
+	test("parses quote command with image url", async () => {
+		const result = await parseQuoteCommand(
+			"quote al https://example.com/image.jpg",
+		);
 		expect(result).toEqual({
 			additionalText: undefined,
 			imageUrls: ["https://example.com/image.jpg"],
@@ -100,8 +157,10 @@ describe("parseQuoteCommand", () => {
 		});
 	});
 
-	test("parses quote command with text and image url", () => {
-		const result = parseQuoteCommand("quote tim yep https://example.com/a.png");
+	test("parses quote command with text and image url", async () => {
+		const result = await parseQuoteCommand(
+			"quote tim yep https://example.com/a.png",
+		);
 		expect(result).toEqual({
 			additionalText: "yep",
 			imageUrls: ["https://example.com/a.png"],
@@ -110,8 +169,8 @@ describe("parseQuoteCommand", () => {
 		});
 	});
 
-	test("trims additional text", () => {
-		const result = parseQuoteCommand("quote al   extra text  ");
+	test("trims additional text", async () => {
+		const result = await parseQuoteCommand("quote al   extra text  ");
 		expect(result).toEqual({
 			additionalText: "extra text",
 			imageUrls: undefined,
@@ -120,8 +179,8 @@ describe("parseQuoteCommand", () => {
 		});
 	});
 
-	test("is case insensitive", () => {
-		const result = parseQuoteCommand("QUOTE al");
+	test("is case insensitive", async () => {
+		const result = await parseQuoteCommand("QUOTE al");
 		expect(result).toEqual({
 			additionalText: undefined,
 			imageUrls: undefined,
@@ -130,16 +189,16 @@ describe("parseQuoteCommand", () => {
 		});
 	});
 
-	test("returns null for non-quote messages", () => {
-		expect(parseQuoteCommand("hello world")).toBeNull();
-		expect(parseQuoteCommand("twit hello")).toBeNull();
-		expect(parseQuoteCommand("quote")).toBeNull(); // no nick
+	test("returns null for non-quote messages", async () => {
+		expect(await parseQuoteCommand("hello world")).toBeNull();
+		expect(await parseQuoteCommand("twit hello")).toBeNull();
+		expect(await parseQuoteCommand("quote")).toBeNull(); // no nick
 	});
 });
 
 describe("parseReplyCommand", () => {
-	test("parses reply command", () => {
-		const result = parseReplyCommand("reply this is a reply");
+	test("parses reply command", async () => {
+		const result = await parseReplyCommand("reply this is a reply");
 		expect(result).toEqual({
 			imageUrls: undefined,
 			text: "this is a reply",
@@ -147,8 +206,8 @@ describe("parseReplyCommand", () => {
 		});
 	});
 
-	test("parses reply command with image url", () => {
-		const result = parseReplyCommand(
+	test("parses reply command with image url", async () => {
+		const result = await parseReplyCommand(
 			"reply check this https://example.com/pic.jpeg",
 		);
 		expect(result).toEqual({
@@ -158,8 +217,8 @@ describe("parseReplyCommand", () => {
 		});
 	});
 
-	test("trims text", () => {
-		const result = parseReplyCommand("reply   some text  ");
+	test("trims text", async () => {
+		const result = await parseReplyCommand("reply   some text  ");
 		expect(result).toEqual({
 			imageUrls: undefined,
 			text: "some text",
@@ -167,8 +226,8 @@ describe("parseReplyCommand", () => {
 		});
 	});
 
-	test("is case insensitive", () => {
-		const result = parseReplyCommand("REPLY hello");
+	test("is case insensitive", async () => {
+		const result = await parseReplyCommand("REPLY hello");
 		expect(result).toEqual({
 			imageUrls: undefined,
 			text: "hello",
@@ -176,14 +235,14 @@ describe("parseReplyCommand", () => {
 		});
 	});
 
-	test("returns null for non-reply messages", () => {
-		expect(parseReplyCommand("hello world")).toBeNull();
-		expect(parseReplyCommand("reply")).toBeNull(); // no text
+	test("returns null for non-reply messages", async () => {
+		expect(await parseReplyCommand("hello world")).toBeNull();
+		expect(await parseReplyCommand("reply")).toBeNull(); // no text
 	});
 });
 
 describe("parseUntwitCommand", () => {
-	test("parses untwit command (non-force)", () => {
+	test("parses untwit command (non-force)", async () => {
 		const result = parseUntwitCommand("untwit");
 		expect(result).toEqual({
 			force: false,
@@ -191,7 +250,7 @@ describe("parseUntwitCommand", () => {
 		});
 	});
 
-	test("parses untwit! command (force)", () => {
+	test("parses untwit! command (force)", async () => {
 		const result = parseUntwitCommand("untwit!");
 		expect(result).toEqual({
 			force: true,
@@ -199,7 +258,7 @@ describe("parseUntwitCommand", () => {
 		});
 	});
 
-	test("is case insensitive", () => {
+	test("is case insensitive", async () => {
 		expect(parseUntwitCommand("UNTWIT")).toEqual({
 			force: false,
 			type: "untwit",
@@ -210,14 +269,14 @@ describe("parseUntwitCommand", () => {
 		});
 	});
 
-	test("returns null for non-untwit messages", () => {
+	test("returns null for non-untwit messages", async () => {
 		expect(parseUntwitCommand("hello world")).toBeNull();
 		expect(parseUntwitCommand("untwit something")).toBeNull(); // has extra text
 	});
 });
 
 describe("parseSupCommand", () => {
-	test("parses sup command with simple handle", () => {
+	test("parses sup command with simple handle", async () => {
 		const result = parseSupCommand("sup dril");
 		expect(result).toEqual({
 			handle: "dril",
@@ -225,7 +284,7 @@ describe("parseSupCommand", () => {
 		});
 	});
 
-	test("parses sup command with dotted handle", () => {
+	test("parses sup command with dotted handle", async () => {
 		const result = parseSupCommand("sup smell.flowers");
 		expect(result).toEqual({
 			handle: "smell.flowers",
@@ -233,7 +292,7 @@ describe("parseSupCommand", () => {
 		});
 	});
 
-	test("parses sup command with full bsky.social handle", () => {
+	test("parses sup command with full bsky.social handle", async () => {
 		const result = parseSupCommand("sup dril.bsky.social");
 		expect(result).toEqual({
 			handle: "dril.bsky.social",
@@ -241,7 +300,7 @@ describe("parseSupCommand", () => {
 		});
 	});
 
-	test("is case insensitive", () => {
+	test("is case insensitive", async () => {
 		const result = parseSupCommand("SUP dril");
 		expect(result).toEqual({
 			handle: "dril",
@@ -249,41 +308,41 @@ describe("parseSupCommand", () => {
 		});
 	});
 
-	test("returns null for non-sup messages", () => {
+	test("returns null for non-sup messages", async () => {
 		expect(parseSupCommand("hello world")).toBeNull();
 		expect(parseSupCommand("twit hello")).toBeNull();
 	});
 
-	test("returns null for sup without handle", () => {
+	test("returns null for sup without handle", async () => {
 		expect(parseSupCommand("sup")).toBeNull();
 	});
 });
 
 describe("extractBlueskyUrl", () => {
-	test("extracts bluesky url from message", () => {
+	test("extracts bluesky url from message", async () => {
 		const url = "https://bsky.app/profile/tim.bsky.social/post/3kowrg5ylci2r";
 		const result = extractBlueskyUrl(`check this out ${url}`);
 		expect(result).toBe(url);
 	});
 
-	test("extracts http url (not just https)", () => {
+	test("extracts http url (not just https)", async () => {
 		const url = "http://bsky.app/profile/tim.bsky.social/post/3kowrg5ylci2r";
 		const result = extractBlueskyUrl(`check this out ${url}`);
 		expect(result).toBe(url);
 	});
 
-	test("returns null when no bluesky url present", () => {
+	test("returns null when no bluesky url present", async () => {
 		expect(extractBlueskyUrl("hello world")).toBeNull();
 		expect(extractBlueskyUrl("https://example.com")).toBeNull();
 	});
 
-	test("extracts url from middle of message", () => {
+	test("extracts url from middle of message", async () => {
 		const message = `before https://bsky.app/profile/al.bsky.social/post/abc123 after`;
 		const result = extractBlueskyUrl(message);
 		expect(result).toBe("https://bsky.app/profile/al.bsky.social/post/abc123");
 	});
 
-	test("extracts url with parentheses in message", () => {
+	test("extracts url with parentheses in message", async () => {
 		const message =
 			"(non derogatory) https://bsky.app/profile/mrpussy.xyz/post/3m2n7pwku7k2s";
 		const result = extractBlueskyUrl(message);
@@ -292,7 +351,7 @@ describe("extractBlueskyUrl", () => {
 		);
 	});
 
-	test("extracts url with text before and after", () => {
+	test("extracts url with text before and after", async () => {
 		const message =
 			"testing embeddd urls https://bsky.app/profile/npr.org/post/3m2ompy2gvs22 in my post";
 		const result = extractBlueskyUrl(message);
@@ -301,42 +360,42 @@ describe("extractBlueskyUrl", () => {
 });
 
 describe("parseCommand", () => {
-	test("returns twit command when message is twit", () => {
-		const result = parseCommand("twit hello");
+	test("returns twit command when message is twit", async () => {
+		const result = await parseCommand("twit hello");
 		expect(result?.type).toBe("twit");
 	});
 
-	test("returns quote command when message is quote", () => {
-		const result = parseCommand("quote al");
+	test("returns quote command when message is quote", async () => {
+		const result = await parseCommand("quote al");
 		expect(result?.type).toBe("quote");
 	});
 
-	test("returns reply command when message is reply", () => {
-		const result = parseCommand("reply hello");
+	test("returns reply command when message is reply", async () => {
+		const result = await parseCommand("reply hello");
 		expect(result?.type).toBe("reply");
 	});
 
-	test("returns untwit command when message is untwit", () => {
-		const result = parseCommand("untwit");
+	test("returns untwit command when message is untwit", async () => {
+		const result = await parseCommand("untwit");
 		expect(result?.type).toBe("untwit");
 	});
 
-	test("returns sup command when message is sup", () => {
-		const result = parseCommand("sup dril");
+	test("returns sup command when message is sup", async () => {
+		const result = await parseCommand("sup dril");
 		expect(result?.type).toBe("sup");
 	});
 
-	test("returns null when message is not a command", () => {
-		const result = parseCommand("just a regular message");
+	test("returns null when message is not a command", async () => {
+		const result = await parseCommand("just a regular message");
 		expect(result).toBeNull();
 	});
 
-	test("prioritizes commands in order: twit, quote, reply, untwit, sup", () => {
+	test("prioritizes commands in order: twit, quote, reply, untwit, sup", async () => {
 		// if a message could match multiple (unlikely but possible), it should return the first match
-		expect(parseCommand("twit hello")?.type).toBe("twit");
-		expect(parseCommand("quote al")?.type).toBe("quote");
-		expect(parseCommand("reply hello")?.type).toBe("reply");
-		expect(parseCommand("untwit")?.type).toBe("untwit");
-		expect(parseCommand("sup dril")?.type).toBe("sup");
+		expect((await parseCommand("twit hello"))?.type).toBe("twit");
+		expect((await parseCommand("quote al"))?.type).toBe("quote");
+		expect((await parseCommand("reply hello"))?.type).toBe("reply");
+		expect((await parseCommand("untwit"))?.type).toBe("untwit");
+		expect((await parseCommand("sup dril"))?.type).toBe("sup");
 	});
 });
