@@ -103,6 +103,13 @@ client.connect({
 let lastSeenNotificationTime: string | undefined;
 
 // poll for new notifications and post to irc channel
+// notification polling configuration with exponential backoff
+const POLL_INTERVAL_BASE = 10000; // 10 seconds
+const POLL_INTERVAL_MAX = 120000; // 120 seconds (2 minutes)
+let currentPollInterval = POLL_INTERVAL_BASE;
+let consecutiveErrors = 0;
+let _pollTimeout: Timer | null = null;
+
 async function pollNotifications(
 	agent: AtpAgent,
 	ircClient: irc.Client,
@@ -160,8 +167,42 @@ async function pollNotifications(
 		if (notifications.length > 0) {
 			await agent.updateSeenNotifications();
 		}
+
+		// success - reset error tracking
+		if (consecutiveErrors > 0) {
+			console.log("Bluesky API recovered");
+			consecutiveErrors = 0;
+			currentPollInterval = POLL_INTERVAL_BASE;
+		}
 	} catch (err) {
-		console.error("Failed to poll notifications:", err);
+		consecutiveErrors++;
+
+		// check if it's a server error (502, 503, etc)
+		const isServerError =
+			err &&
+			typeof err === "object" &&
+			"status" in err &&
+			(err.status === 502 || err.status === 503);
+
+		if (isServerError) {
+			console.log(
+				`Bluesky API unavailable (${(err as { status: number }).status}), backing off (attempt ${consecutiveErrors})`,
+			);
+		} else {
+			// log full error for non-server issues
+			console.error("Failed to poll notifications:", err);
+		}
+
+		// exponential backoff: double the interval each time, up to max
+		currentPollInterval = Math.min(
+			POLL_INTERVAL_BASE * 2 ** (consecutiveErrors - 1),
+			POLL_INTERVAL_MAX,
+		);
+	} finally {
+		// schedule next poll with current interval
+		_pollTimeout = setTimeout(() => {
+			pollNotifications(agent, ircClient, channel);
+		}, currentPollInterval);
 	}
 }
 
@@ -192,12 +233,7 @@ async function main() {
 		if (event.nick === client.user.nick) {
 			console.log(`Joined ${event.channel}`);
 
-			// start polling for notifications every 10 seconds
-			setInterval(() => {
-				pollNotifications(agent, client, IRC_CHANNEL);
-			}, 10000);
-
-			// do an initial poll immediately
+			// start polling for notifications (self-schedules with backoff)
 			pollNotifications(agent, client, IRC_CHANNEL);
 		}
 	});
