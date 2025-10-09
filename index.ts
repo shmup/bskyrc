@@ -151,8 +151,8 @@ async function pollNotifications(
 			// format message for irc
 			const message =
 				notif.reason === "mention"
-					? `bsky/@${authorHandle}: ${postText} ${postUrl}`
-					: `bsky/@${authorHandle} replies: ${postText} ${postUrl}`;
+					? `${blueskyHandlers.formatBskyHandle(authorHandle)}: ${postText} ${postUrl}`
+					: `${blueskyHandlers.formatBskyHandle(authorHandle)} replies: ${postText} ${postUrl}`;
 
 			ircClient.say(channel, message);
 

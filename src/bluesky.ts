@@ -221,6 +221,13 @@ export interface LastPostResult {
 }
 
 // formats a post object into a display message
+/**
+ * formats a bluesky handle with irc formatting codes
+ */
+export function formatBskyHandle(handle: string): string {
+	return `\x02\x16bsky/@${handle}\x0F`;
+}
+
 function formatPostMessage(post: {
 	record: unknown;
 	embed?: unknown;
@@ -269,7 +276,7 @@ function formatPostMessage(post: {
 	}
 
 	const authorHandle = post.author.handle;
-	return `bsky/@${authorHandle}: ${text}`;
+	return `${formatBskyHandle(authorHandle)}: ${text}`;
 }
 
 export async function getLastPost(
