@@ -12,6 +12,7 @@ import {
 	getSeen,
 	updateSeen,
 } from "./src/seen.js";
+import { log, logError } from "./src/utils.js";
 
 // force local .env to override global environment variables
 // supports custom env file via ENV_FILE environment variable
@@ -59,13 +60,13 @@ let blueskyHandlers: typeof import("./src/bluesky.js") = await import(
 // watch commands.ts for changes and reload
 watch("./src/commands.ts", async (event) => {
 	if (event === "change") {
-		console.log("Commands module changed, reloading...");
+		log("Commands module changed, reloading...");
 		try {
 			// dynamic import with cache busting
 			commandHandlers = await import(`./src/commands.js?t=${Date.now()}`);
-			console.log("Commands module reloaded successfully");
+			log("Commands module reloaded successfully");
 		} catch (err) {
-			console.error("Failed to reload commands module:", err);
+			logError("Failed to reload commands module:", err);
 		}
 	}
 });
@@ -73,13 +74,13 @@ watch("./src/commands.ts", async (event) => {
 // watch bluesky.ts for changes and reload
 watch("./src/bluesky.ts", async (event) => {
 	if (event === "change") {
-		console.log("Bluesky module changed, reloading...");
+		log("Bluesky module changed, reloading...");
 		try {
 			// dynamic import with cache busting
 			blueskyHandlers = await import(`./src/bluesky.js?t=${Date.now()}`);
-			console.log("Bluesky module reloaded successfully");
+			log("Bluesky module reloaded successfully");
 		} catch (err) {
-			console.error("Failed to reload bluesky module:", err);
+			logError("Failed to reload bluesky module:", err);
 		}
 	}
 });
@@ -176,27 +177,35 @@ async function pollNotifications(
 
 		// success - reset error tracking
 		if (consecutiveErrors > 0) {
-			console.log("Bluesky API recovered");
+			log("Bluesky API recovered");
 			consecutiveErrors = 0;
 			currentPollInterval = POLL_INTERVAL_BASE;
 		}
 	} catch (err) {
 		consecutiveErrors++;
 
-		// check if it's a server error (502, 503, etc)
+		// check if it's a server error (502, 503, etc) or connection error
 		const isServerError =
 			err &&
 			typeof err === "object" &&
 			"status" in err &&
 			(err.status === 502 || err.status === 503);
 
+		const isConnectionError =
+			err &&
+			typeof err === "object" &&
+			"code" in err &&
+			err.code === "ConnectionRefused";
+
 		if (isServerError) {
-			console.log(
+			log(
 				`Bluesky API unavailable (${(err as { status: number }).status}), backing off (attempt ${consecutiveErrors})`,
 			);
+		} else if (isConnectionError) {
+			log(`Connection refused, backing off (attempt ${consecutiveErrors})`);
 		} else {
 			// log full error for non-server issues
-			console.error("Failed to poll notifications:", err);
+			logError("Failed to poll notifications:", err);
 		}
 
 		// exponential backoff: double the interval each time, up to max
@@ -214,30 +223,30 @@ async function pollNotifications(
 
 async function main() {
 	// login to bluesky
-	console.log(`Attempting login with username: ${BLUESKY_USERNAME}`);
+	log(`Attempting login with username: ${BLUESKY_USERNAME}`);
 	const session = await agent.login({
 		identifier: BLUESKY_USERNAME,
 		password: BLUESKY_PASSWORD,
 	});
 
-	console.log(`Logged in to Bluesky as ${session.data.handle}`);
+	log(`Logged in to Bluesky as ${session.data.handle}`);
 
 	client.on("registered", () => {
-		console.log("Connected to IRC");
+		log("Connected to IRC");
 
 		// authenticate with nickserv if password is provided
 		if (process.env.IRC_PASSWORD) {
 			client.say("NickServ", `IDENTIFY ${process.env.IRC_PASSWORD}`);
-			console.log("Sent NickServ identification");
+			log("Sent NickServ identification");
 		}
 
-		console.log(`Attempting to join ${IRC_CHANNEL}`);
+		log(`Attempting to join ${IRC_CHANNEL}`);
 		client.join(IRC_CHANNEL);
 	});
 
 	client.on("join", (event: irc.JoinEvent) => {
 		if (event.nick === client.user.nick) {
-			console.log(`Joined ${event.channel}`);
+			log(`Joined ${event.channel}`);
 
 			// start polling for notifications (self-schedules with backoff)
 			pollNotifications(agent, client, IRC_CHANNEL);
@@ -385,19 +394,19 @@ async function main() {
 	});
 
 	client.on("socket close", () => {
-		console.log("IRC socket closed - disconnected from server");
+		log("IRC socket closed - disconnected from server");
 	});
 
 	client.on("reconnecting", () => {
-		console.log("IRC attempting to reconnect...");
+		log("IRC attempting to reconnect...");
 	});
 
 	client.on("error", (err: Error) => {
-		console.error("IRC error:", err);
+		logError("IRC error:", err);
 	});
 
 	client.on("close", (event: unknown) => {
-		console.log(
+		log(
 			"Disconnected from IRC",
 			event ? `- Reason: ${JSON.stringify(event)}` : "",
 		);

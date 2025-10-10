@@ -8,6 +8,7 @@ import {
 import sharp from "sharp";
 
 import { BLUESKY_APP_URL, ONE_HOUR_MS } from "./constants.js";
+import { log, logError } from "./utils.js";
 
 // type for bluesky post data
 interface PostData {
@@ -91,7 +92,7 @@ export async function postToBluesky(
 					images,
 				};
 			} catch (err) {
-				console.error("Failed to embed images:", err);
+				logError("Failed to embed images:", err);
 				return { success: false };
 			}
 		}
@@ -101,7 +102,7 @@ export async function postToBluesky(
 				Omit<AppBskyFeedPost.Record, "createdAt">,
 		);
 		const postUrl = `${BLUESKY_APP_URL}/profile/${agent.session?.handle}/post/${response.uri.split("/").pop()}`;
-		console.log("Posted to Bluesky:", postUrl);
+		log(`Posted to Bluesky: ${postUrl}`);
 
 		return {
 			success: true,
@@ -109,7 +110,7 @@ export async function postToBluesky(
 			url: postUrl,
 		};
 	} catch (err) {
-		console.error("Failed to post to Bluesky:", err);
+		logError("Failed to post to Bluesky:", err);
 		return { success: false };
 	}
 }
@@ -142,7 +143,7 @@ export async function parseBlueskyUrl(
 
 		return { cid, uri };
 	} catch (err) {
-		console.error("Failed to parse Bluesky URL:", err);
+		logError("Failed to parse Bluesky URL:", err);
 		return null;
 	}
 }
@@ -184,7 +185,7 @@ export async function deletePost(
 				});
 				postText = (postData.value as { text?: string })?.text;
 			} catch (err) {
-				console.error("Failed to fetch post text:", err);
+				logError("Failed to fetch post text:", err);
 			}
 		}
 
@@ -196,10 +197,10 @@ export async function deletePost(
 		}
 
 		await agent.deletePost(postUri);
-		console.log("Deleted post:", postUri);
+		log(`Deleted post: ${postUri}`);
 		return { success: true, text: postText };
 	} catch (err) {
-		console.error("Failed to delete post:", err);
+		logError("Failed to delete post:", err);
 		return { success: false };
 	}
 }
@@ -320,11 +321,11 @@ export async function getLastPost(
 			(err.message.includes("Profile not found") ||
 				err.message.includes("actor must be a valid did or a handle"))
 		) {
-			console.log(`Invalid or unknown handle: ${handle}`);
+			log(`Invalid or unknown handle: ${handle}`);
 			return { message: "who?", success: true };
 		}
 		// other errors - log and return failure
-		console.error("Failed to get last post:", err);
+		logError("Failed to get last post:", err);
 		return { success: false };
 	}
 }
@@ -360,7 +361,7 @@ export async function getPostFromUrl(
 			url,
 		};
 	} catch (err) {
-		console.error("Failed to get post from URL:", err);
+		logError("Failed to get post from URL:", err);
 		return { success: false };
 	}
 }
