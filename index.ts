@@ -265,8 +265,11 @@ async function main() {
 		// track all messages in seen database (before command handling)
 		updateSeen(nick, message, target);
 
+		// trim whitespace for command parsing
+		const trimmedMessage = message.trim();
+
 		// try to parse as a command
-		const command = await commandHandlers.parseCommand(message);
+		const command = await commandHandlers.parseCommand(trimmedMessage);
 
 		if (command?.type === "twit") {
 			// store the text being posted (not the command) in history
@@ -379,7 +382,7 @@ async function main() {
 		}
 
 		// track bluesky urls in messages and auto-display post content
-		const bskyUrl = commandHandlers.extractBlueskyUrl(message);
+		const bskyUrl = commandHandlers.extractBlueskyUrl(trimmedMessage);
 		if (bskyUrl) {
 			lastBskyUrl = bskyUrl;
 			// fetch and display the post content
@@ -390,7 +393,7 @@ async function main() {
 		}
 
 		// store non-command messages in history
-		messageHistory.set(nick.toLowerCase(), message);
+		messageHistory.set(nick.toLowerCase(), trimmedMessage);
 	});
 
 	client.on("socket close", () => {
