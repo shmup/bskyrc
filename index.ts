@@ -115,7 +115,6 @@ const POLL_INTERVAL_BASE = 30000; // 30 seconds
 const POLL_INTERVAL_MAX = 600000; // 10 minutes
 let currentPollInterval = POLL_INTERVAL_BASE;
 let consecutiveErrors = 0;
-let _pollTimeout: Timer | null = null;
 
 async function pollNotifications(
 	agent: AtpAgent,
@@ -130,7 +129,7 @@ async function pollNotifications(
 			const mentionsAndReplies = result.data.notifications.filter(
 				(n) => n.reason === "mention" || n.reason === "reply",
 			);
-			if (mentionsAndReplies.length > 0) {
+			if (mentionsAndReplies.length > 0 && mentionsAndReplies[0]) {
 				lastSeenNotificationTime = mentionsAndReplies[0].indexedAt;
 			}
 			return;
@@ -215,7 +214,7 @@ async function pollNotifications(
 		);
 	} finally {
 		// schedule next poll with current interval
-		_pollTimeout = setTimeout(() => {
+		setTimeout(() => {
 			pollNotifications(agent, ircClient, channel);
 		}, currentPollInterval);
 	}
@@ -409,11 +408,22 @@ async function main() {
 	});
 
 	client.on("close", (event: unknown) => {
-		log(
-			"Disconnected from IRC",
-			event ? `- Reason: ${JSON.stringify(event)}` : "",
-		);
+		const reason = event ? ` - Reason: ${JSON.stringify(event)}` : "";
+		log(`Disconnected from IRC${reason}`);
 	});
 }
+
+// graceful shutdown with custom quit message
+process.on("SIGINT", () => {
+	log("Received SIGINT, shutting down gracefully...");
+	client.quit("ha i kill me");
+	setTimeout(() => process.exit(0), 1000);
+});
+
+process.on("SIGTERM", () => {
+	log("Received SIGTERM, shutting down gracefully...");
+	client.quit("ha i kill me");
+	setTimeout(() => process.exit(0), 1000);
+});
 
 main();

@@ -29,6 +29,7 @@ declare module "irc-framework" {
 		connect(options: ConnectionOptions): void;
 		join(channel: string): void;
 		say(target: string, message: string): void;
+		quit(message?: string): void;
 		on(event: "registered", handler: () => void): void;
 		on(event: "join", handler: (event: JoinEvent) => void): void;
 		on(event: "message", handler: (event: MessageEvent) => void): void;
