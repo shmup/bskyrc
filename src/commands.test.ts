@@ -5,6 +5,7 @@ import {
 	parseCommand,
 	parseQuoteCommand,
 	parseReplyCommand,
+	parseSeenCommand,
 	parseSupCommand,
 	parseTwitCommand,
 	parseUntwitCommand,
@@ -318,6 +319,64 @@ describe("parseSupCommand", () => {
 	});
 });
 
+describe("parseSeenCommand", () => {
+	test("parses basic seen command", () => {
+		const result = parseSeenCommand("seen testuser");
+		expect(result).toEqual({
+			targetNick: "testuser",
+			type: "seen",
+		});
+	});
+
+	test("parses seen command with uppercase", () => {
+		const result = parseSeenCommand("SEEN TestUser");
+		expect(result).toEqual({
+			targetNick: "TestUser",
+			type: "seen",
+		});
+	});
+
+	test("parses seen command with mixed case", () => {
+		const result = parseSeenCommand("SeEn CamelCase");
+		expect(result).toEqual({
+			targetNick: "CamelCase",
+			type: "seen",
+		});
+	});
+
+	test("handles nick with special characters", () => {
+		const result = parseSeenCommand("seen user[away]");
+		expect(result).toEqual({
+			targetNick: "user[away]",
+			type: "seen",
+		});
+	});
+
+	test("handles underscores and dashes in nick", () => {
+		const result = parseSeenCommand("seen test_user-123");
+		expect(result).toEqual({
+			targetNick: "test_user-123",
+			type: "seen",
+		});
+	});
+
+	test("returns null for seen without target", () => {
+		expect(parseSeenCommand("seen")).toBeNull();
+	});
+
+	test("returns null for seen with only spaces", () => {
+		expect(parseSeenCommand("seen  ")).toBeNull();
+	});
+
+	test("returns null for non-seen command", () => {
+		expect(parseSeenCommand("twit hello")).toBeNull();
+	});
+
+	test("returns null for seen with extra words", () => {
+		expect(parseSeenCommand("seen user extra words")).toBeNull();
+	});
+});
+
 describe("extractBlueskyUrl", () => {
 	test("extracts bluesky url from message", async () => {
 		const url = "https://bsky.app/profile/tim.bsky.social/post/3kowrg5ylci2r";
@@ -385,17 +444,23 @@ describe("parseCommand", () => {
 		expect(result?.type).toBe("sup");
 	});
 
+	test("returns seen command when message is seen", async () => {
+		const result = await parseCommand("seen testuser");
+		expect(result?.type).toBe("seen");
+	});
+
 	test("returns null when message is not a command", async () => {
 		const result = await parseCommand("just a regular message");
 		expect(result).toBeNull();
 	});
 
-	test("prioritizes commands in order: twit, quote, reply, untwit, sup", async () => {
+	test("prioritizes commands in order: twit, quote, reply, untwit, sup, seen", async () => {
 		// if a message could match multiple (unlikely but possible), it should return the first match
 		expect((await parseCommand("twit hello"))?.type).toBe("twit");
 		expect((await parseCommand("quote al"))?.type).toBe("quote");
 		expect((await parseCommand("reply hello"))?.type).toBe("reply");
 		expect((await parseCommand("untwit"))?.type).toBe("untwit");
 		expect((await parseCommand("sup dril"))?.type).toBe("sup");
+		expect((await parseCommand("seen testuser"))?.type).toBe("seen");
 	});
 });

@@ -28,12 +28,18 @@ export type SupCommand = {
 	handle: string;
 };
 
+export type SeenCommand = {
+	type: "seen";
+	targetNick: string;
+};
+
 export type Command =
 	| TwitCommand
 	| QuoteCommand
 	| ReplyCommand
 	| UntwitCommand
 	| SupCommand
+	| SeenCommand
 	| null;
 
 /**
@@ -195,6 +201,21 @@ export function parseSupCommand(message: string): SupCommand | null {
 }
 
 /**
+ * parse a message to see if it matches the seen command pattern
+ */
+export function parseSeenCommand(message: string): SeenCommand | null {
+	const match = message.match(/^seen\s+(\S+)$/i);
+	if (!match) return null;
+
+	const targetNick = match[1] as string;
+
+	return {
+		targetNick,
+		type: "seen",
+	};
+}
+
+/**
  * extract bluesky url from a message if present
  */
 export function extractBlueskyUrl(message: string): string | null {
@@ -223,6 +244,9 @@ export async function parseCommand(message: string): Promise<Command> {
 
 	const supCmd = parseSupCommand(message);
 	if (supCmd) return supCmd;
+
+	const seenCmd = parseSeenCommand(message);
+	if (seenCmd) return seenCmd;
 
 	return null;
 }

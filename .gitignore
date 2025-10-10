@@ -1,3 +1,5 @@
 node_modules/
 .env
 .env.*
+seen.db
+seen-test.db

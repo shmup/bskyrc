@@ -6,6 +6,12 @@ import dotenv from "dotenv";
 import * as irc from "irc-framework";
 import type { Command } from "./src/commands.js";
 import { BLUESKY_APP_URL, BLUESKY_SERVICE_URL } from "./src/constants.js";
+import {
+	formatNotSeenMessage,
+	formatSeenMessage,
+	getSeen,
+	updateSeen,
+} from "./src/seen.js";
 
 // force local .env to override global environment variables
 // supports custom env file via ENV_FILE environment variable
@@ -247,6 +253,9 @@ async function main() {
 		// only respond to messages in our channel
 		if (target !== IRC_CHANNEL) return;
 
+		// track all messages in seen database (before command handling)
+		updateSeen(nick, message, target);
+
 		// try to parse as a command
 		const command = await commandHandlers.parseCommand(message);
 
@@ -344,6 +353,18 @@ async function main() {
 				}
 			} else {
 				client.say(target, "no");
+			}
+			return;
+		}
+
+		if (command?.type === "seen") {
+			const seenRecord = getSeen(command.targetNick);
+			if (seenRecord) {
+				const response = formatSeenMessage(seenRecord, nick);
+				client.say(target, response);
+			} else {
+				const response = formatNotSeenMessage(command.targetNick, nick);
+				client.say(target, response);
 			}
 			return;
 		}
