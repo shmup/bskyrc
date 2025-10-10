@@ -111,8 +111,8 @@ let lastSeenNotificationTime: string | undefined;
 
 // poll for new notifications and post to irc channel
 // notification polling configuration with exponential backoff
-const POLL_INTERVAL_BASE = 10000; // 10 seconds
-const POLL_INTERVAL_MAX = 120000; // 120 seconds (2 minutes)
+const POLL_INTERVAL_BASE = 30000; // 30 seconds
+const POLL_INTERVAL_MAX = 600000; // 10 minutes
 let currentPollInterval = POLL_INTERVAL_BASE;
 let consecutiveErrors = 0;
 let _pollTimeout: Timer | null = null;
