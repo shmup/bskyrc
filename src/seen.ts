@@ -1,6 +1,7 @@
 // database and logic for tracking when users were last seen on irc
 
 import { Database } from "bun:sqlite";
+import fs from "node:fs";
 import path from "node:path";
 
 let db: Database | null = null;
@@ -11,7 +12,14 @@ let db: Database | null = null;
 function getDb(): Database {
 	if (!db || !db.filename) {
 		const dbPath =
-			process.env.SEEN_DB_PATH || path.join(process.cwd(), "seen.db");
+			process.env.SEEN_DB_PATH || path.join(process.cwd(), "data", "seen.db");
+
+		// ensure data directory exists
+		const dir = path.dirname(dbPath);
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
+		}
+
 		db = new Database(dbPath);
 
 		// create table if it doesn't exist
